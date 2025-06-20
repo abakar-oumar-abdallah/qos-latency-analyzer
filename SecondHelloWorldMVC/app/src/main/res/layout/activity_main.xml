@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="HelloWorld MVC"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_gravity="center"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:id="@+id/messageTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Hello World!"
+        android:textSize="18sp"
+        android:padding="16dp"
+        android:layout_marginBottom="16dp" />
+
+    <EditText
+        android:id="@+id/messageEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Nouveau message"
+        android:layout_marginBottom="16dp" />
+
+    <!-- SECTION DES BOUTONS ORIGINAUX -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Actions originales :"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <!-- BOUTON AFFICHER LE MESSAGE (INCHANGÉ) -->
+    <Button
+        android:id="@+id/showButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Afficher le message"
+        android:layout_marginBottom="4dp" />
+
+    <!-- BOUTON METTRE À JOUR LE MESSAGE (INCHANGÉ) -->
+    <Button
+        android:id="@+id/updateButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Mettre à jour le message"
+        android:layout_marginBottom="16dp" />
+
+    <!-- SECTION DES NOUVEAUX BOUTONS -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Nouvelles fonctionnalités :"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/changeViewButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Changer de vue "
+        android:layout_marginBottom="4dp"
+        android:backgroundTint="#4CAF50" />
+
+    <Button
+        android:id="@+id/evolveModelButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Faire évoluer modèle"
+        android:backgroundTint="#FF9800" />
+
+    <!-- INDICATEUR DE VUE ACTIVE -->
+    <TextView
+        android:id="@+id/viewIndicator"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Vue active : Bleue"
+        android:layout_gravity="center"
+        android:textStyle="italic"
+        android:layout_marginTop="16dp" />
+
+</LinearLayout>
