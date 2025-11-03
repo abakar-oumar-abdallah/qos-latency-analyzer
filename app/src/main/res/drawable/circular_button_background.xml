@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Fichier à placer dans : app/src/main/res/drawable/circular_button_background.xml
+
+    Ce drawable crée un fond circulaire bleu pour les boutons de navigation
+    entre les différents écrans de l'application.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+
+    <!-- Couleur de remplissage - Bleu Material Design -->
+    <solid android:color="#2196F3" />
+
+    <!-- Bordure avec couleur plus foncée -->
+    <stroke
+        android:width="2dp"
+        android:color="#1976D2" />
+
+    <!-- Taille par défaut des boutons circulaires -->
+    <size
+        android:width="120dp"
+        android:height="120dp" />
+
+</shape>
