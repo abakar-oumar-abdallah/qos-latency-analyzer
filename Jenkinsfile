@@ -59,10 +59,25 @@ pipeline {
 
         stage('Analyse Lint') {
             steps {
-                echo 'Analyse Lint Android' {
-                    sh './gradlew lint'
-                }
+                echo 'Analyse Lint Android'
+                sh './gradlew lint'
             }
+        }
+
+    }
+
+    post {
+        success {
+            echo 'La pipeline a été exécutée avec succès'
+        }
+
+        faillure {
+            echo 'La pipeline a échoué'
+            echo 'Consultez les logs ci-dessus pour identier les erreurs qui ont fait échoué la pipeline'
+        }
+
+        always {
+            echo 'Cette étape est toujours exécutée'
         }
     }
 }
