@@ -19,5 +19,21 @@ pipeline {
             }
         }
 
+        stage('Informations Environement') {
+            steps {
+                echo 'Vérification de l/environment'
+                sh ```
+                    echo "Java version"
+                    java -version
+                    echo ""
+                    echo "Android SDK Location"
+                    echo ${ANDROID_HOME}
+                    echo ""
+                    echo "Gradle wrapper"
+                    ls -la gradlew
+                ```
+            }
+        }
+
     }
 }
