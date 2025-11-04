@@ -56,5 +56,13 @@ pipeline {
                 sh './gradlew test'
             }
         }
+
+        stage('Analyse Lint') {
+            steps {
+                echo 'Analyse Lint Android' {
+                    sh './gradlew lint'
+                }
+            }
+        }
     }
 }
