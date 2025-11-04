@@ -49,5 +49,12 @@ pipeline {
                 sh './gradlew assembleDebug'
             }
         }
+
+        stage('Tests Unitaires') {
+            steps {
+                echo 'Exécution des tests unitaires'
+                sh './gradlew test'
+            }
+        }
     }
 }
