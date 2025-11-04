@@ -71,7 +71,7 @@ pipeline {
             echo 'La pipeline a été exécutée avec succès'
         }
 
-        faillure {
+        failure {
             echo 'La pipeline a échoué'
             echo 'Consultez les logs ci-dessus pour identier les erreurs qui ont fait échoué la pipeline'
         }
