@@ -42,5 +42,12 @@ pipeline {
                 sh './gradlew clean'
             }
         }
+
+        stage('Build application android') {
+            steps {
+                echo 'Compilation de APK Debug'
+                sh './gradlew assembleDebug'
+            }
+        }
     }
 }
