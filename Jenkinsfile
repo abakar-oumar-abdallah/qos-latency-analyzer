@@ -35,5 +35,12 @@ pipeline {
             }
         }
 
+        stage('Clean') {
+            steps {
+                echo 'Nettoyage du projet'
+                sh 'chmod +x gradlew'
+                sh './gradlew clean'
+            }
+        }
     }
 }
