@@ -22,7 +22,7 @@ pipeline {
         stage('Informations Environement') {
             steps {
                 echo 'Vérification de l/environment'
-                sh ```
+                sh '''
                     echo "Java version"
                     java -version
                     echo ""
@@ -31,7 +31,7 @@ pipeline {
                     echo ""
                     echo "Gradle wrapper"
                     ls -la gradlew
-                ```
+                '''
             }
         }
 
