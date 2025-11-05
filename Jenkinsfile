@@ -64,6 +64,13 @@ pipeline {
             }
         }
 
+        stage('Archive APK') {
+            steps {
+                echo 'Archivage de APK'
+                archiveArtifacts artifacts: '**/build/outputs/apk/debug/*.apk', allowEmptyArchive: false, fingerprint: true
+            }
+        }
+
     }
 
     post {
