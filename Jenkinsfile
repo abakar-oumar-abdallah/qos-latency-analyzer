@@ -96,7 +96,7 @@ pipeline {
                 allowMissing: true,
                 alwaysLinkToLastBuild: true,
                 keepAll: true,
-                reportDir: 'app/build/reports/lint-results-debug.html',
+                reportDir: 'app/build/reports',
                 reportFiles: 'lint-results-debug.html',
                 reportName: 'Lint Report'
             ])
