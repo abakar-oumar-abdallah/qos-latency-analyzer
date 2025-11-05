@@ -75,7 +75,9 @@ pipeline {
 
     post {
         success {
-            echo 'La pipeline a été exécutée avec succès'
+            echo 'Build réussi'
+            echo 'APK disponible dans les artifacts'
+            echo 'Nom du fichier: app-debug.apk'
         }
 
         failure {
@@ -84,7 +86,20 @@ pipeline {
         }
 
         always {
-            echo 'Cette étape est toujours exécutée'
+            echo 'Nettoyage final'
+
+            // Archiver les rapports de tests
+            junit allowEmptyResults: true, testResults: '**/build/test-results/**/*.xml'
+
+            // Archiver les rapports Lint
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'app/build/reports/lint-results-debug.html',
+                reportFiles: 'lint-results-debug.html',
+                reportName: 'Lint Report'
+            ])
         }
     }
 }
