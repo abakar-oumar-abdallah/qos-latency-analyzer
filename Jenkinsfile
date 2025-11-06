@@ -12,13 +12,6 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                echo 'Récupération du code depuis Bitbucket'
-                checkout scm
-            }
-        }
-
         stage('Informations Environement') {
             steps {
                 echo 'Vérification de l/environment'
