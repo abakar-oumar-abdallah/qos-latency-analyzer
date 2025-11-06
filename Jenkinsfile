@@ -71,6 +71,13 @@ pipeline {
             echo 'Build réussi'
             echo 'APK disponible dans les artifacts'
             echo 'Nom du fichier: app-debug.apk'
+
+            script {
+                def testResults = junit testResults: '**/build/test-results/**/*.xml'
+                echo "Tests exécutés : ${testResults.totalCount}"
+                echo "Tests réussis : ${testResults.passCount}"
+                echo "Tests échoués : ${testResults.failCount}"
+            }
         }
 
         failure {
