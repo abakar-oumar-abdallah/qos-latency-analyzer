@@ -46,7 +46,7 @@ pipeline {
         stage('Tests Unitaires') {
             steps {
                 echo 'Exécution des tests unitaires'
-                sh './gradlew test'
+                sh './gradlew test --stacktrace'
             }
         }
 
