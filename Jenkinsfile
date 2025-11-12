@@ -50,6 +50,43 @@ pipeline {
             }
         }
 
+        stage('Tests Instrumentés') {
+            steps {
+                echo 'Lancement des tests sur émulateur'
+                script {
+                    try {
+                        // 1. Lancer l'émulateur en arrière-plan
+                        sh '''
+                            nohup emulator -avd test_emulator -no-window -no-audio -gpu swiftshader_indirect > emulator.log 2>&1 &
+                            echo $! > emulator.pid
+                        '''
+
+                        // 2. Attendre que l'émulateur soit prêt (max 5 min)
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                adb wait-for-device
+                                while [ "$(adb shell getprop sys.boot_completed | tr -d '\\r')" != "1" ]; do
+                                    sleep 5
+                                done
+                                echo "Émulateur prêt"
+                            '''
+                        }
+
+                        // 3. Exécuter les tests
+                        sh './gradlew connectedAndroidTest'
+
+                    } finally {
+                        // 4. Arrêter l'émulateur (toujours exécuté)
+                        sh '''
+                            adb emu kill || true
+                            pkill -9 emulator || true
+                            rm -f emulator.pid emulator.log
+                        '''
+                    }
+                }
+            }
+        }
+
         stage('Analyse Lint') {
             steps {
                 echo 'Analyse Lint Android'
