@@ -1,0 +1,81 @@
+{
+  "transmitted": 10,
+  "received": 9,
+  "duplicates": "1",
+  "packet_loss": "10%",
+  "request_size": 268,
+  "time_between_requests": "0.060 s",
+  "duration": "600 ms",
+  "request_array": {
+    "0": {
+      "tx_ts": 1756192408770903,
+      "rx_ts": 1756192408803179,
+      "rtt": 32.276,
+      "duplicated": 0,
+      "reversed": 0
+    },
+    "1": {
+      "tx_ts": 1756192408831058,
+      "rx_ts": 1756192408860613,
+      "rtt": 29.555,
+      "duplicated": 0,
+      "reversed": 0
+    },
+    "2": {
+      "tx_ts": 1756192408891011,
+      "rx_ts": 0,
+      "rtt": 0,
+      "duplicated": 0,
+      "reversed": 0
+    },
+    "3": {
+      "tx_ts": 1756192408950979,
+      "rx_ts": 1756192408978011,
+      "rtt": 27.032,
+      "duplicated": 1,
+      "reversed": 0
+    },
+    "4": {
+      "tx_ts": 1756192409011025,
+      "rx_ts": 1756192409059842,
+      "rtt": 48.817,
+      "duplicated": 0,
+      "reversed": 1
+    },
+    "5": {
+      "tx_ts": 1756192409071105,
+      "rx_ts": 1756192409102956,
+      "rtt": 31.851,
+      "duplicated": 0,
+      "reversed": 0
+    },
+    "6": {
+      "tx_ts": 1756192409131157,
+      "rx_ts": 1756192409156450,
+      "rtt": 25.293,
+      "duplicated": 0,
+      "reversed": 0
+    },
+    "7": {
+      "tx_ts": 1756192409191017,
+      "rx_ts": 1756192409225596,
+      "rtt": 34.579,
+      "duplicated": 0,
+      "reversed": 0
+    },
+    "8": {
+      "tx_ts": 1756192409251077,
+      "rx_ts": 1756192409278126,
+      "rtt": 27.049,
+      "duplicated": 0,
+      "reversed": 0
+    },
+    "9": {
+      "tx_ts": 1756192409311104,
+      "rx_ts": 1756192409346036,
+      "rtt": 34.932,
+      "duplicated": 0,
+      "reversed": 0
+    }
+  }
+}
