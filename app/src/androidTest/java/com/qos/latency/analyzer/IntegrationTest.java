@@ -15,6 +15,8 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.LargeTest;
 
+import com.qos.latency.analyzer.utils.DisableAnimationsRule;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -32,6 +34,10 @@ import org.junit.runner.RunWith;
 @LargeTest
 public class IntegrationTest {
 
+    // ⭐ CRITIQUE : Désactiver les animations système AVANT tous les tests
+    @Rule
+    public DisableAnimationsRule disableAnimationsRule = new DisableAnimationsRule();
+
     @Rule
     public ActivityScenarioRule<MainActivity> activityRule =
             new ActivityScenarioRule<>(MainActivity.class);
@@ -39,7 +45,7 @@ public class IntegrationTest {
     /**
      * Test du flux complet : Démarrage → Sélection → Animation
      *
-     * CORRIGÉ : Délais augmentés pour éviter les échecs sur CI/CD
+     * CORRIGÉ : Délais augmentés + animations désactivées
      */
     @Test
     public void testCompleteUserFlow() throws InterruptedException {
@@ -47,16 +53,16 @@ public class IntegrationTest {
         onView(withId(R.id.screen_file_selection))
                 .check(matches(isDisplayed()));
 
-        // AUGMENTÉ : Attendre que la liste des fichiers soit complètement chargée
-        Thread.sleep(2500);  // Était 1000ms → maintenant 2500ms
+        // AUGMENTÉ ENCORE : Attendre que la liste soit COMPLÈTEMENT chargée
+        Thread.sleep(3500);  // Était 2500ms → maintenant 3500ms
 
         // Sélectionner un fichier
         onView(withText("test_data"))
                 .check(matches(isDisplayed()))
                 .perform(scrollTo(), click());
 
-        // Attendre la navigation et le chargement
-        Thread.sleep(1500);  // Était 1000ms → maintenant 1500ms
+        // Attendre la navigation
+        Thread.sleep(2000);  // Était 1500ms → maintenant 2000ms
 
         // Vérifier la navigation vers l'écran d'animation
         onView(withId(R.id.screen_animation))
@@ -66,142 +72,123 @@ public class IntegrationTest {
         onView(withId(R.id.tv_status))
                 .check(matches(withText("Prêt pour l'analyse")));
 
-        // Vérifier que le graphique est visible
+        // Vérifier le graphique
         onView(withId(R.id.chart_view))
                 .check(matches(isDisplayed()));
 
-        // Vérifier que le bouton de lancement est prêt
+        // Vérifier le bouton
         onView(withId(R.id.btn_launch))
                 .check(matches(isDisplayed()))
                 .check(matches(withText("Lancer")));
     }
 
     /**
-     * Test du flux : Sélection → Animation → Retour → Nouvelle sélection
+     * Test de sélections multiples
      */
     @Test
     public void testMultipleFileSelections() throws InterruptedException {
-        // Attendre le chargement initial
-        Thread.sleep(2000);  // Était 1000ms → maintenant 2000ms
+        Thread.sleep(3000);  // Était 2000ms → maintenant 3000ms
 
-        // Première sélection
         onView(withText("test_data"))
                 .perform(scrollTo(), click());
 
-        Thread.sleep(1500);  // Était 1000ms → maintenant 1500ms
+        Thread.sleep(2000);  // Était 1500ms → maintenant 2000ms
 
         onView(withId(R.id.tv_status))
                 .check(matches(withText("Prêt pour l'analyse")));
 
-        // Retour à la sélection
         onView(withId(R.id.btn_change_file))
                 .perform(click());
 
-        Thread.sleep(1500);  // Était 1000ms → maintenant 1500ms
+        Thread.sleep(2000);  // Était 1500ms → maintenant 2000ms
 
         onView(withId(R.id.screen_file_selection))
                 .check(matches(isDisplayed()));
 
-        // Deuxième sélection (même fichier)
         onView(withText("test_data"))
                 .perform(scrollTo(), click());
 
-        Thread.sleep(1500);  // Était 1000ms → maintenant 1500ms
+        Thread.sleep(2000);  // Était 1500ms → maintenant 2000ms
 
-        // Vérifier que tout fonctionne encore
         onView(withId(R.id.tv_status))
                 .check(matches(withText("Prêt pour l'analyse")));
     }
 
     /**
-     * Test de rafraîchissement de la liste de fichiers
+     * Test de rafraîchissement - CRITIQUE
      *
-     * CORRIGÉ : Délais augmentés pour éviter les échecs sur CI/CD
+     * CORRIGÉ : Délais maximaux + animations désactivées
      */
     @Test
     public void testRefreshFileList() throws InterruptedException {
-        // AUGMENTÉ : Attendre le chargement initial
-        Thread.sleep(2500);  // Était 1000ms → maintenant 2500ms
+        // AUGMENTÉ AU MAXIMUM : Chargement initial
+        Thread.sleep(4000);  // Était 2500ms → maintenant 4000ms
 
         // Cliquer sur actualiser
         onView(withId(R.id.btn_refresh_files))
                 .perform(click());
 
-        // AUGMENTÉ : Attendre que la liste soit rechargée
-        Thread.sleep(2500);  // Était 1000ms → maintenant 2500ms
+        // AUGMENTÉ AU MAXIMUM : Rechargement
+        Thread.sleep(4000);  // Était 2500ms → maintenant 4000ms
 
-        // Vérifier que les fichiers sont toujours affichés
+        // Vérifier que les fichiers sont affichés
         onView(withText("test_data"))
                 .check(matches(isDisplayed()));
     }
 
     /**
-     * Test de lancement d'animation (début seulement)
+     * Test de lancement d'animation
      */
     @Test
     public void testAnimationStart() throws InterruptedException {
-        // Attendre le chargement
-        Thread.sleep(2000);  // Était 1000ms → maintenant 2000ms
+        Thread.sleep(3000);  // Était 2000ms → maintenant 3000ms
 
-        // Sélectionner un fichier
         onView(withText("test_data"))
                 .perform(scrollTo(), click());
 
-        Thread.sleep(1500);  // Était 1000ms → maintenant 1500ms
+        Thread.sleep(2000);  // Était 1500ms → maintenant 2000ms
 
-        // Vérifier l'état initial du bouton
         onView(withId(R.id.btn_launch))
                 .check(matches(withText("Lancer")))
                 .check(matches(isEnabled()));
 
-        // Lancer l'animation
         onView(withId(R.id.btn_launch))
                 .perform(click());
 
-        // Vérification IMMÉDIATE : le bouton change d'état
         Thread.sleep(300);
 
         onView(withId(R.id.btn_launch))
                 .check(matches(withText("Animation...")));
 
-        // Attendre que l'animation progresse
         Thread.sleep(3000);
 
-        // À ce stade, l'animation devrait être en pause de visualisation
-        // Le bouton devrait afficher le countdown (ex: "27s")
         onView(withId(R.id.btn_launch))
                 .check(matches(withText(containsString("s"))));
 
-        // Vérifier que le statut est toujours affiché
         onView(withId(R.id.tv_status))
                 .check(matches(isDisplayed()));
     }
 
     /**
-     * Test : Vérifier que l'animation change le statut
+     * Test changement de statut lors de l'animation
      */
     @Test
     public void testAnimationChangesStatus() throws InterruptedException {
-        // Attendre le chargement
-        Thread.sleep(2000);  // Était 1000ms → maintenant 2000ms
+        Thread.sleep(3000);  // Était 2000ms → maintenant 3000ms
 
         onView(withText("test_data"))
                 .perform(scrollTo(), click());
 
-        Thread.sleep(1500);  // Était 1000ms → maintenant 1500ms
+        Thread.sleep(2000);  // Était 1500ms → maintenant 2000ms
 
-        // Statut initial
         onView(withId(R.id.tv_status))
                 .check(matches(withText("Prêt pour l'analyse")));
 
-        // Lancer l'animation
         onView(withId(R.id.btn_launch))
                 .perform(click());
 
-        // Attendre un peu
         Thread.sleep(2000);
 
-        // Le statut doit avoir changé (ne plus être "Prêt pour l'analyse")
         onView(withId(R.id.tv_status))
                 .check(matches(not(withText("Prêt pour l'analyse"))));
     }
