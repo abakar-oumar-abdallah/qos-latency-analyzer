@@ -8,6 +8,7 @@ pipeline {
     environment {
         ANDROID_HOME = '/opt/android-sdk'
         PATH = "${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${env.PATH}"
+        PHONE_IP = "192.168.1.109"
     }
 
     stages {
@@ -52,36 +53,63 @@ pipeline {
 
         stage('Tests Instrumentés') {
             steps {
-                echo 'Lancement des tests sur émulateur'
+                echo '========================================='
+                echo 'Tests Instrumentés sur Téléphone'
+                echo '========================================='
                 script {
                     try {
-                        // 1. Lancer l'émulateur en arrière-plan
+                        // Connexion au téléphone
                         sh '''
-                            nohup emulator -avd test_emulator -no-window -no-audio -gpu swiftshader_indirect > emulator.log 2>&1 &
-                            echo $! > emulator.pid
+                            echo "🔌 Connexion au téléphone ${PHONE_IP}..."
+                            adb connect ${PHONE_IP}:5555 || true
+                            sleep 3
+
+                            echo ""
+                            echo "=== APPAREILS CONNECTÉS ==="
+                            adb devices -l
+
+                            # Vérifier qu'au moins un appareil est détecté
+                            DEVICE_COUNT=$(adb devices | grep -w "device" | wc -l)
+
+                            if [ $DEVICE_COUNT -eq 0 ]; then
+                                echo ""
+                                echo "ERREUR: Aucun appareil détecté"
+                                echo ""
+                                echo "Vérifications à faire :"
+                                echo "1. Le téléphone est-il sur le même WiFi que le serveur ?"
+                                echo "2. ADB WiFi activé ? Commande : adb tcpip 5555"
+                                echo "3. Connexion établie ? Commande : adb connect ${PHONE_IP}:5555"
+                                echo "4. IP correcte dans le Jenkinsfile : ${PHONE_IP}"
+                                exit 1
+                            fi
+
+                            echo "${DEVICE_COUNT} appareil(s) connecté(s)"
+
+                            echo ""
+                            echo "=== INFORMATIONS APPAREIL ==="
+                            echo "Modèle     : $(adb shell getprop ro.product.model)"
+                            echo "Fabricant  : $(adb shell getprop ro.product.manufacturer)"
+                            echo "Android    : $(adb shell getprop ro.build.version.release)"
+                            echo "API Level  : $(adb shell getprop ro.build.version.sdk)"
                         '''
 
-                        // 2. Attendre que l'émulateur soit prêt (max 5 min)
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh '''
-                                adb wait-for-device
-                                while [ "$(adb shell getprop sys.boot_completed | tr -d '\\r')" != "1" ]; do
-                                    sleep 5
-                                done
-                                echo "Émulateur prêt"
-                            '''
-                        }
+                        echo ''
+                        echo 'Lancement des tests instrumentés...'
+                        sh './gradlew connectedAndroidTest --stacktrace'
 
-                        // 3. Exécuter les tests
-                        sh './gradlew connectedAndroidTest'
+                        echo ''
+                        echo 'Tests instrumentés terminés avec succès !'
 
-                    } finally {
-                        // 4. Arrêter l'émulateur (toujours exécuté)
+                    } catch (Exception e) {
+                        echo "ERREUR lors des tests: ${e.message}"
+
                         sh '''
-                            adb emu kill || true
-                            pkill -9 emulator || true
-                            rm -f emulator.pid emulator.log
+                            echo ""
+                            echo "=== DEBUG - État de la connexion ==="
+                            adb devices -l
                         '''
+
+                        throw e
                     }
                 }
             }
