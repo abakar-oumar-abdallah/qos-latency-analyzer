@@ -51,6 +51,114 @@ pipeline {
             }
         }
 
+        stage('Préparation Device pour Appium') {
+            steps {
+                echo '========================================='
+                echo '📱 Connexion au téléphone pour Appium'
+                echo '========================================='
+                script {
+                    sh '''
+                        echo "🔌 Connexion au téléphone ${PHONE_IP}..."
+                        adb connect ${PHONE_IP}:5555 || true
+                        sleep 3
+
+                        echo ""
+                        echo "=== APPAREILS CONNECTÉS ==="
+                        adb devices -l
+
+                        DEVICE_COUNT=$(adb devices | grep -w "device" | wc -l)
+
+                        if [ $DEVICE_COUNT -eq 0 ]; then
+                            echo "❌ ERREUR: Aucun appareil détecté"
+                            exit 1
+                        fi
+
+                        echo "✅ ${DEVICE_COUNT} appareil(s) connecté(s)"
+
+                        echo ""
+                        echo "=== INFORMATIONS APPAREIL ==="
+                        echo "Modèle     : $(adb shell getprop ro.product.model)"
+                        echo "Fabricant  : $(adb shell getprop ro.product.manufacturer)"
+                        echo "Android    : $(adb shell getprop ro.build.version.release)"
+                        echo "API Level  : $(adb shell getprop ro.build.version.sdk)"
+                        echo "UDID       : $(adb devices | grep -w "device" | awk '{print $1}' | head -n 1)"
+
+                        echo ""
+                        echo "🗑️  Désinstallation de l'ancienne version..."
+                        adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   Pas d'ancienne version (OK)"
+                    '''
+                }
+            }
+        }
+
+        stage('Démarrage Appium Server') {
+            steps {
+                echo '========================================='
+                echo '🚀 Démarrage du serveur Appium'
+                echo '========================================='
+                script {
+                    sh '''
+                        echo "Arrêt de tout processus Appium existant..."
+                        pkill -f appium || true
+                        sleep 2
+
+                        echo "Démarrage d'Appium sur le port ${APPIUM_PORT}..."
+                        nohup appium server \
+                            --address 127.0.0.1 \
+                            --port ${APPIUM_PORT} \
+                            --log /tmp/appium.log \
+                            --log-level info \
+                            --use-drivers uiautomator2 \
+                            --relaxed-security &
+
+                        echo "Attente du démarrage d'Appium..."
+                        sleep 10
+
+                        echo "✅ Appium démarré"
+
+                        echo ""
+                        echo "=== LOGS APPIUM (10 premières lignes) ==="
+                        head -n 10 /tmp/appium.log || echo "Pas encore de logs"
+                    '''
+                }
+            }
+        }
+
+        stage('Tests Appium') {
+            steps {
+                echo '========================================='
+                echo '📱 Exécution des tests Appium'
+                echo '========================================='
+                script {
+                    catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                        sh '''
+                            echo "Lancement des tests Appium..."
+                            ./gradlew appiumTest \
+                                -Dappium.server=http://127.0.0.1:${APPIUM_PORT} \
+                                --stacktrace \
+                                --info
+                        '''
+                    }
+
+                    echo '✅ Tests Appium terminés'
+                }
+            }
+        }
+
+        stage('Arrêt Appium Server') {
+            steps {
+                echo '========================================='
+                echo '🛑 Arrêt du serveur Appium'
+                echo '========================================='
+                sh '''
+                    echo "Arrêt d'Appium..."
+                    pkill -f appium || true
+                    sleep 2
+                    echo "✅ Appium arrêté"
+                '''
+            }
+        }
+
         stage('Tests Instrumentés') {
             steps {
                 echo '========================================='
