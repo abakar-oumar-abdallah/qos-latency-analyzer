@@ -9,6 +9,7 @@ pipeline {
         ANDROID_HOME = '/opt/android-sdk'
         PATH = "${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${env.PATH}"
         PHONE_IP = "192.168.1.109"
+        APPIUM_PORT = "4723"
     }
 
     stages {
@@ -53,9 +54,9 @@ pipeline {
 
         stage('Préparation Device pour Appium') {
             steps {
-                echo '========================================='
+
                 echo '📱 Connexion au téléphone pour Appium'
-                echo '========================================='
+
                 script {
                     sh '''
                         echo "🔌 Connexion au téléphone ${PHONE_IP}..."
@@ -69,11 +70,11 @@ pipeline {
                         DEVICE_COUNT=$(adb devices | grep -w "device" | wc -l)
 
                         if [ $DEVICE_COUNT -eq 0 ]; then
-                            echo "❌ ERREUR: Aucun appareil détecté"
+                            echo "ERREUR: Aucun appareil détecté"
                             exit 1
                         fi
 
-                        echo "✅ ${DEVICE_COUNT} appareil(s) connecté(s)"
+                        echo "${DEVICE_COUNT} appareil(s) connecté(s)"
 
                         echo ""
                         echo "=== INFORMATIONS APPAREIL ==="
@@ -84,7 +85,7 @@ pipeline {
                         echo "UDID       : $(adb devices | grep -w "device" | awk '{print $1}' | head -n 1)"
 
                         echo ""
-                        echo "🗑️  Désinstallation de l'ancienne version..."
+                        echo "Désinstallation de l'ancienne version..."
                         adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   Pas d'ancienne version (OK)"
                     '''
                 }
@@ -93,9 +94,9 @@ pipeline {
 
         stage('Démarrage Appium Server') {
             steps {
-                echo '========================================='
-                echo '🚀 Démarrage du serveur Appium'
-                echo '========================================='
+
+                echo 'Démarrage du serveur Appium'
+
                 script {
                     sh '''
                         echo "Arrêt de tout processus Appium existant..."
@@ -114,7 +115,7 @@ pipeline {
                         echo "Attente du démarrage d'Appium..."
                         sleep 10
 
-                        echo "✅ Appium démarré"
+                        echo "Appium démarré"
 
                         echo ""
                         echo "=== LOGS APPIUM (10 premières lignes) ==="
@@ -126,9 +127,9 @@ pipeline {
 
         stage('Tests Appium') {
             steps {
-                echo '========================================='
+
                 echo '📱 Exécution des tests Appium'
-                echo '========================================='
+
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                         sh '''
@@ -140,30 +141,30 @@ pipeline {
                         '''
                     }
 
-                    echo '✅ Tests Appium terminés'
+                    echo 'Tests Appium terminés'
                 }
             }
         }
 
         stage('Arrêt Appium Server') {
             steps {
-                echo '========================================='
-                echo '🛑 Arrêt du serveur Appium'
-                echo '========================================='
+
+                echo 'Arrêt du serveur Appium'
+
                 sh '''
                     echo "Arrêt d'Appium..."
                     pkill -f appium || true
                     sleep 2
-                    echo "✅ Appium arrêté"
+                    echo "Appium arrêté"
                 '''
             }
         }
 
         stage('Tests Instrumentés') {
             steps {
-                echo '========================================='
+
                 echo 'Tests Instrumentés sur Téléphone'
-                echo '========================================='
+
                 script {
                     try {
                         // Connexion au téléphone
