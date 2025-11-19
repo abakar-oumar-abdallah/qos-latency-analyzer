@@ -54,12 +54,11 @@ pipeline {
 
         stage('Préparation Device pour Appium') {
             steps {
-
                 echo '📱 Connexion au téléphone pour Appium'
 
                 script {
                     sh '''
-                        echo "🔌 Connexion au téléphone ${PHONE_IP}..."
+                        echo "Connexion au téléphone ${PHONE_IP}..."
                         adb connect ${PHONE_IP}:5555 || true
                         sleep 3
 
@@ -87,6 +86,26 @@ pipeline {
                         echo ""
                         echo "Désinstallation de l'ancienne version..."
                         adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   Pas d'ancienne version (OK)"
+
+                        echo ""
+                        echo "Préparation des fichiers de test sur le téléphone..."
+
+                        # Créer le répertoire sur le téléphone
+                        adb shell mkdir -p /sdcard/Android/data/com.qos.latency.analyzer/files/
+
+                        # Copier les fichiers JSON depuis les assets du projet vers le téléphone
+                        echo "Copie de test_data.json..."
+                        adb push app/src/main/assets/test_data.json /sdcard/Android/data/com.qos.latency.analyzer/files/test_data.json
+
+                        echo "Copie de data_high_variable_latency.json..."
+                        adb push app/src/main/assets/data_high_variable_latency.json /sdcard/Android/data/com.qos.latency.analyzer/files/high_variable_latency.json
+
+                        echo "Copie de new_data.json..."
+                        adb push app/src/main/assets/new_data.json /sdcard/Android/data/com.qos.latency.analyzer/files/new_data.json
+
+                        echo ""
+                        echo "Vérification des fichiers copiés :"
+                        adb shell ls -la /sdcard/Android/data/com.qos.latency.analyzer/files/
                     '''
                 }
             }
