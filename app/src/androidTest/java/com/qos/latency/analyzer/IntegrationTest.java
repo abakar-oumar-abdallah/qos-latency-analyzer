@@ -11,30 +11,37 @@ import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 
+import androidx.test.espresso.Espresso;
+import androidx.test.espresso.IdlingPolicies;
+import androidx.test.espresso.IdlingRegistry;
+import androidx.test.espresso.IdlingResource;
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.LargeTest;
 
 import com.qos.latency.analyzer.utils.DisableAnimationsRule;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.util.concurrent.TimeUnit;
+
 /**
- * Tests d'intégration complets
- * Testent le flux utilisateur de bout en bout
+ * Tests d'intégration complets - VERSION CORRIGÉE
  *
- * Note: Les délais (Thread.sleep) sont augmentés pour la CI/CD car :
- * - Les tests sur téléphone physique via ADB WiFi sont plus lents
- * - Le chargement des fichiers peut prendre du temps
- * - Cela évite les "flaky tests" dus au timing
+ * PRINCIPALES :
+ * - Augmentation des timeouts IdlingResource
+ * - Meilleure gestion des attentes avec waitForView()
+ * - Utilisation de perform() au lieu de check() avant les actions
+ * - Gestion des éléments qui nécessitent un scroll
  */
 @RunWith(AndroidJUnit4.class)
 @LargeTest
 public class IntegrationTest {
 
-    // ⭐ CRITIQUE : Désactiver les animations système AVANT tous les tests
     @Rule
     public DisableAnimationsRule disableAnimationsRule = new DisableAnimationsRule();
 
@@ -43,9 +50,56 @@ public class IntegrationTest {
             new ActivityScenarioRule<>(MainActivity.class);
 
     /**
+     * Configuration des politiques d'attente Espresso
+     */
+    @Before
+    public void setUp() {
+        // Augmenter les timeouts Espresso pour la CI/CD
+        IdlingPolicies.setMasterPolicyTimeout(60, TimeUnit.SECONDS);
+        IdlingPolicies.setIdlingResourceTimeout(60, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Helper pour attendre qu'une vue soit présente
+     */
+    private void waitForView(int viewId, long timeoutMillis) {
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < timeoutMillis) {
+            try {
+                onView(withId(viewId)).check(matches(isDisplayed()));
+                return; // Vue trouvée
+            } catch (Exception e) {
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
+
+    /**
+     * Helper pour attendre qu'un texte soit présent
+     */
+    private void waitForText(String text, long timeoutMillis) {
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < timeoutMillis) {
+            try {
+                onView(withText(text)).check(matches(isDisplayed()));
+                return; // Texte trouvé
+            } catch (Exception e) {
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
+
+    /**
      * Test du flux complet : Démarrage → Sélection → Animation
-     *
-     * CORRIGÉ : Délais augmentés + animations désactivées
+     * Utilisation des nouvelles helpers
      */
     @Test
     public void testCompleteUserFlow() throws InterruptedException {
@@ -53,16 +107,26 @@ public class IntegrationTest {
         onView(withId(R.id.screen_file_selection))
                 .check(matches(isDisplayed()));
 
-        // AUGMENTÉ ENCORE : Attendre que la liste soit COMPLÈTEMENT chargée
-        Thread.sleep(3500);  // Était 2500ms → maintenant 3500ms
+        // Attendre avec helper personnalisé
+        waitForText("test_data", 10000); // 10 secondes max
 
-        // Sélectionner un fichier
+        // Forcer Espresso à attendre
+        Espresso.onIdle();
+        Thread.sleep(1000); // Sécurité supplémentaire
+
+        // D'abord scrollTo, puis check, puis click
         onView(withText("test_data"))
-                .check(matches(isDisplayed()))
-                .perform(scrollTo(), click());
+                .perform(scrollTo()); // Scroller d'abord
 
-        // Attendre la navigation
-        Thread.sleep(2000);  // Était 1500ms → maintenant 2000ms
+        Thread.sleep(500); // Laisser le scroll se terminer
+
+        onView(withText("test_data"))
+                .check(matches(isDisplayed())) // Vérifier qu'il est visible
+                .perform(click()); // Puis cliquer
+
+        // Attendre la navigation avec helper
+        waitForView(R.id.screen_animation, 5000);
+        Thread.sleep(1000);
 
         // Vérifier la navigation vers l'écran d'animation
         onView(withId(R.id.screen_animation))
@@ -87,12 +151,19 @@ public class IntegrationTest {
      */
     @Test
     public void testMultipleFileSelections() throws InterruptedException {
-        Thread.sleep(3000);  // Était 2000ms → maintenant 3000ms
+        waitForText("test_data", 10000);
+        Espresso.onIdle();
+        Thread.sleep(1000);
 
         onView(withText("test_data"))
-                .perform(scrollTo(), click());
+                .perform(scrollTo());
+        Thread.sleep(500);
 
-        Thread.sleep(2000);  // Était 1500ms → maintenant 2000ms
+        onView(withText("test_data"))
+                .perform(click());
+
+        waitForView(R.id.screen_animation, 5000);
+        Thread.sleep(1000);
 
         onView(withId(R.id.tv_status))
                 .check(matches(withText("Prêt pour l'analyse")));
@@ -100,15 +171,24 @@ public class IntegrationTest {
         onView(withId(R.id.btn_change_file))
                 .perform(click());
 
-        Thread.sleep(2000);  // Était 1500ms → maintenant 2000ms
+        waitForView(R.id.screen_file_selection, 5000);
+        Thread.sleep(1000);
 
         onView(withId(R.id.screen_file_selection))
                 .check(matches(isDisplayed()));
 
-        onView(withText("test_data"))
-                .perform(scrollTo(), click());
+        waitForText("test_data", 10000);
+        Thread.sleep(1000);
 
-        Thread.sleep(2000);  // Était 1500ms → maintenant 2000ms
+        onView(withText("test_data"))
+                .perform(scrollTo());
+        Thread.sleep(500);
+
+        onView(withText("test_data"))
+                .perform(click());
+
+        waitForView(R.id.screen_animation, 5000);
+        Thread.sleep(1000);
 
         onView(withId(R.id.tv_status))
                 .check(matches(withText("Prêt pour l'analyse")));
@@ -116,20 +196,41 @@ public class IntegrationTest {
 
     /**
      * Test de rafraîchissement - CRITIQUE
-     *
-     * CORRIGÉ : Délais maximaux + animations désactivées
+     * Nouvelle approche avec helpers
      */
     @Test
     public void testRefreshFileList() throws InterruptedException {
-        // AUGMENTÉ AU MAXIMUM : Chargement initial
-        Thread.sleep(4000);  // Était 2500ms → maintenant 4000ms
+        // Attendre le chargement initial
+        waitForText("test_data", 10000);
+        Espresso.onIdle();
+        Thread.sleep(1500);
+
+        // Vérifier que le fichier est présent
+        onView(withText("test_data"))
+                .perform(scrollTo()); // Scroller vers le fichier
+
+        Thread.sleep(500);
+
+        onView(withText("test_data"))
+                .check(matches(isDisplayed())); // Vérifier la visibilité
 
         // Cliquer sur actualiser
         onView(withId(R.id.btn_refresh_files))
                 .perform(click());
 
-        // AUGMENTÉ AU MAXIMUM : Rechargement
-        Thread.sleep(4000);  // Était 2500ms → maintenant 4000ms
+        // Attendre le rechargement
+        Thread.sleep(2000); // Temps pour l'animation de refresh
+        Espresso.onIdle(); // Attendre que l'UI soit idle
+
+        // Attendre que les fichiers réapparaissent
+        waitForText("test_data", 10000);
+        Thread.sleep(1500);
+
+        // Scroller à nouveau si nécessaire
+        onView(withText("test_data"))
+                .perform(scrollTo());
+
+        Thread.sleep(500);
 
         // Vérifier que les fichiers sont affichés
         onView(withText("test_data"))
@@ -141,12 +242,19 @@ public class IntegrationTest {
      */
     @Test
     public void testAnimationStart() throws InterruptedException {
-        Thread.sleep(3000);  // Était 2000ms → maintenant 3000ms
+        waitForText("test_data", 10000);
+        Espresso.onIdle();
+        Thread.sleep(1000);
 
         onView(withText("test_data"))
-                .perform(scrollTo(), click());
+                .perform(scrollTo());
+        Thread.sleep(500);
 
-        Thread.sleep(2000);  // Était 1500ms → maintenant 2000ms
+        onView(withText("test_data"))
+                .perform(click());
+
+        waitForView(R.id.screen_animation, 5000);
+        Thread.sleep(1000);
 
         onView(withId(R.id.btn_launch))
                 .check(matches(withText("Lancer")))
@@ -174,12 +282,19 @@ public class IntegrationTest {
      */
     @Test
     public void testAnimationChangesStatus() throws InterruptedException {
-        Thread.sleep(3000);  // Était 2000ms → maintenant 3000ms
+        waitForText("test_data", 10000);
+        Espresso.onIdle();
+        Thread.sleep(1000);
 
         onView(withText("test_data"))
-                .perform(scrollTo(), click());
+                .perform(scrollTo());
+        Thread.sleep(500);
 
-        Thread.sleep(2000);  // Était 1500ms → maintenant 2000ms
+        onView(withText("test_data"))
+                .perform(click());
+
+        waitForView(R.id.screen_animation, 5000);
+        Thread.sleep(1000);
 
         onView(withId(R.id.tv_status))
                 .check(matches(withText("Prêt pour l'analyse")));
