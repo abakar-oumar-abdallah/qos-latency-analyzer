@@ -33,8 +33,13 @@ pipeline {
         stage('Clean') {
             steps {
                 echo 'Nettoyage du projet'
-                sh 'chmod +x gradlew'
-                sh './gradlew clean'
+                sh '''
+                    chmod +x gradlew
+                    echo "Suppression manuelle du dossier build..."
+                    rm -rf app/build
+                    rm -rf build
+                    echo "✅ Nettoyage terminé"
+                '''
             }
         }
 
