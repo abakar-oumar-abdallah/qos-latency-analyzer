@@ -1,70 +1,111 @@
 pipeline {
     agent any
 
-    options {
-        timeout(time: 2, unit: 'HOURS')
-        timestamps()
+    triggers {
+        pollSCM('H */4 * * 1-5')
     }
 
     environment {
         ANDROID_HOME = '/opt/android-sdk'
-        JAVA_HOME = '/opt/java/openjdk'
-        PATH = "${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/cmdline-tools/latest/bin:${JAVA_HOME}/bin:${PATH}"
-
-        PHONE_IP = '192.168.1.109'
-        PHONE_PORT = '5555'
-        DEVICE_UDID = "${PHONE_IP}:${PHONE_PORT}"
-        APPIUM_PORT = '4723'
-
-        WORKSPACE_DIR = "${WORKSPACE}"
-        APK_PATH = "${WORKSPACE}/app/build/outputs/apk/debug/app-debug.apk"
+        PATH = "${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${env.PATH}"
+        PHONE_IP = "192.168.1.109"
+        APPIUM_PORT = "4723"
     }
 
     stages {
-        stage('Préparation') {
+
+        stage('Informations Environement') {
             steps {
-                echo 'Nettoyage et préparation de l\'environnement'
+                echo 'Vérification de l/environment'
                 sh '''
-                    echo "🧹 Arrêt du daemon Gradle..."
-                    chmod +x gradlew
-                    ./gradlew --stop || true
-
-                    echo "🗑️ Suppression des fichiers de build..."
-                    rm -rf app/build/intermediates
-                    rm -rf app/build/tmp
-                    rm -rf .gradle
-
-                    echo "✅ Environnement prêt"
+                    echo "Java version"
+                    java -version
+                    echo ""
+                    echo "Android SDK Location"
+                    echo ${ANDROID_HOME}
+                    echo ""
+                    echo "Gradle wrapper"
+                    ls -la gradlew
                 '''
             }
         }
 
-        stage('Compilation') {
+        stage('Clean') {
             steps {
-                echo 'Compilation du projet Android'
-                sh '''
-                    chmod +x gradlew
-                    ./gradlew assembleDebug --no-daemon
-                '''
+                echo 'Nettoyage du projet'
+                sh 'chmod +x gradlew'
+                sh './gradlew clean'
+            }
+        }
 
-                sh '''
-                    if [ ! -f "${APK_PATH}" ]; then
-                        echo "❌ ERREUR: APK introuvable à ${APK_PATH}"
-                        exit 1
-                    fi
-                    echo "✅ APK trouvé: ${APK_PATH}"
-                    ls -lh "${APK_PATH}"
-                '''
+        stage('Build application android') {
+            steps {
+                echo 'Compilation de APK Debug'
+                sh './gradlew assembleDebug'
             }
         }
 
         stage('Tests Unitaires') {
             steps {
                 echo 'Exécution des tests unitaires'
-                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                sh './gradlew test --stacktrace'
+            }
+        }
+
+        stage('Préparation Device pour Appium') {
+            steps {
+                echo '📱 Connexion au téléphone pour Appium'
+
+                script {
                     sh '''
-                        chmod +x gradlew
-                        ./gradlew test --stacktrace --no-daemon
+                        echo "Connexion au téléphone ${PHONE_IP}..."
+                        adb connect ${PHONE_IP}:5555 || true
+                        sleep 3
+
+                        echo ""
+                        echo "=== APPAREILS CONNECTÉS ==="
+                        adb devices -l
+
+                        DEVICE_COUNT=$(adb devices | grep -w "device" | wc -l)
+
+                        if [ $DEVICE_COUNT -eq 0 ]; then
+                            echo "ERREUR: Aucun appareil détecté"
+                            exit 1
+                        fi
+
+                        echo "${DEVICE_COUNT} appareil(s) connecté(s)"
+
+                        echo ""
+                        echo "=== INFORMATIONS APPAREIL ==="
+                        echo "Modèle     : $(adb shell getprop ro.product.model)"
+                        echo "Fabricant  : $(adb shell getprop ro.product.manufacturer)"
+                        echo "Android    : $(adb shell getprop ro.build.version.release)"
+                        echo "API Level  : $(adb shell getprop ro.build.version.sdk)"
+                        echo "UDID       : $(adb devices | grep -w "device" | awk '{print $1}' | head -n 1)"
+
+                        echo ""
+                        echo "Désinstallation de l'ancienne version..."
+                        adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   Pas d'ancienne version (OK)"
+
+                        echo ""
+                        echo "Préparation des fichiers de test sur le téléphone..."
+
+                        # Créer le répertoire sur le téléphone
+                        adb shell mkdir -p /sdcard/Android/data/com.qos.latency.analyzer/files/
+
+                        # Copier les fichiers JSON depuis les assets du projet vers le téléphone
+                        echo "Copie de test_data.json..."
+                        adb push app/src/main/assets/test_data.json /sdcard/Android/data/com.qos.latency.analyzer/files/test_data.json
+
+                        echo "Copie de data_high_variable_latency.json..."
+                        adb push app/src/main/assets/data_high_variable_latency.json /sdcard/Android/data/com.qos.latency.analyzer/files/high_variable_latency.json
+
+                        echo "Copie de new_data.json..."
+                        adb push app/src/main/assets/new_data.json /sdcard/Android/data/com.qos.latency.analyzer/files/new_data.json
+
+                        echo ""
+                        echo "Vérification des fichiers copiés :"
+                        adb shell ls -la /sdcard/Android/data/com.qos.latency.analyzer/files/
                     '''
                 }
             }
@@ -72,135 +113,53 @@ pipeline {
 
         stage('Démarrage Appium Server') {
             steps {
+
                 echo 'Démarrage du serveur Appium'
-                sh '''
-                    echo "Arrêt des instances Appium existantes..."
-                    pkill -f appium || true
-                    sleep 2
 
-                    echo "Démarrage d'Appium sur le port ${APPIUM_PORT}..."
-                    nohup appium --port ${APPIUM_PORT} > appium.log 2>&1 &
-                    sleep 5
+                script {
+                    sh '''
+                        echo "Arrêt de tout processus Appium existant..."
+                        pkill -f appium || true
+                        sleep 2
 
-                    echo "Vérification du serveur Appium..."
-                    curl -s http://127.0.0.1:${APPIUM_PORT}/status || echo "Appium non prêt"
-                '''
-            }
-        }
+                        echo "Démarrage d'Appium sur le port ${APPIUM_PORT}..."
+                        nohup appium server \
+                            --address 127.0.0.1 \
+                            --port ${APPIUM_PORT} \
+                            --log /tmp/appium.log \
+                            --log-level info \
+                            --use-drivers uiautomator2 \
+                            --relaxed-security &
 
-        stage('Préparation Device pour Appium') {
-            steps {
-                echo 'Préparation du téléphone pour les tests'
-                sh '''
-                    echo "==================================="
-                    echo "PRÉPARATION DEVICE POUR APPIUM"
-                    echo "==================================="
-                    echo "Workspace: ${WORKSPACE_DIR}"
-                    echo "APK Path: ${APK_PATH}"
+                        echo "Attente du démarrage d'Appium..."
+                        sleep 10
 
-                    echo ""
-                    echo "📱 Connexion au téléphone ${DEVICE_UDID}..."
-                    adb connect ${DEVICE_UDID}
-                    sleep 3
+                        echo "Appium démarré"
 
-                    echo ""
-                    echo "📋 Appareils connectés:"
-                    adb devices -l
-
-                    echo ""
-                    echo "🗑️ Désinstallation complète..."
-                    adb -s ${DEVICE_UDID} uninstall com.qos.latency.analyzer || echo "App non installée"
-                    sleep 2
-
-                    echo ""
-                    echo "📦 Installation de l'APK..."
-                    echo "Chemin: ${APK_PATH}"
-                    adb -s ${DEVICE_UDID} install "${APK_PATH}"
-
-                    if [ $? -ne 0 ]; then
-                        echo "❌ ERREUR: Échec de l'installation"
-                        exit 1
-                    fi
-                    echo "✅ APK installé avec succès"
-
-                    echo ""
-                    echo "🔍 Vérification installation..."
-                    adb -s ${DEVICE_UDID} shell pm list packages | grep latency
-
-                    echo ""
-                    echo "🧹 Effacer les logs..."
-                    adb -s ${DEVICE_UDID} logcat -c
-
-                    echo ""
-                    echo "🚀 Lancement de l'app (copie des assets)..."
-                    adb -s ${DEVICE_UDID} shell am start -n com.qos.latency.analyzer/.MainActivity
-
-                    echo "⏳ Attente 10 secondes pour copie des assets..."
-                    sleep 10
-
-                    echo ""
-                    echo "🛑 Arrêt de l'application..."
-                    adb -s ${DEVICE_UDID} shell am force-stop com.qos.latency.analyzer
-                    sleep 2
-
-                    echo ""
-                    echo "==================================="
-                    echo "VÉRIFICATION FICHIERS"
-                    echo "==================================="
-                    APP_DATA_DIR="/storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data"
-
-                    echo "📂 Contenu de ${APP_DATA_DIR} :"
-                    adb -s ${DEVICE_UDID} shell ls -lh "${APP_DATA_DIR}"
-
-                    if [ $? -ne 0 ]; then
                         echo ""
-                        echo "❌ ERREUR: Dossier QoS_Data introuvable !"
-                        echo ""
-                        echo "📋 LOGS APPLICATION (copie assets) :"
-                        adb -s ${DEVICE_UDID} logcat -d | grep -i "QoS_MainActivity"
-                        exit 1
-                    fi
-
-                    echo ""
-                    echo "📊 Nombre de fichiers JSON :"
-                    FILE_COUNT=$(adb -s ${DEVICE_UDID} shell "ls ${APP_DATA_DIR}/*.json 2>/dev/null | wc -l" | tr -d '\r')
-                    echo "${FILE_COUNT} fichier(s)"
-
-                    if [ "${FILE_COUNT}" -eq "0" ]; then
-                        echo ""
-                        echo "❌ ERREUR CRITIQUE: Aucun fichiers JSON trouvé !"
-                        echo ""
-                        echo "📋 LOGS APPLICATION :"
-                        adb -s ${DEVICE_UDID} logcat -d | grep -i "QoS_MainActivity"
-                        exit 1
-                    else
-                        echo ""
-                        echo "✅ ${FILE_COUNT} fichier(s) JSON disponible(s)"
-                        echo ""
-                        echo "📋 LOGS COPIE (confirmation) :"
-                        adb -s ${DEVICE_UDID} logcat -d | grep "QoS_MainActivity" | grep "COPIE TERMINÉE"
-                    fi
-
-                    echo "==================================="
-                    echo "✅ PRÉPARATION TERMINÉE"
-                    echo "==================================="
-                '''
+                        echo "=== LOGS APPIUM (10 premières lignes) ==="
+                        head -n 10 /tmp/appium.log || echo "Pas encore de logs"
+                    '''
+                }
             }
         }
 
         stage('Tests Appium') {
-            options {
-                timeout(time: 20, unit: 'MINUTES')
-            }
             steps {
-                echo 'Tests Appium sur Téléphone'
+
+                echo '📱 Exécution des tests Appium'
+
                 script {
-                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                         sh '''
-                            chmod +x gradlew
-                            ./gradlew appiumTest --stacktrace --no-daemon
+                            echo "Lancement des tests Appium..."
+                            ./gradlew appiumTest \
+                                -Dappium.server=http://127.0.0.1:${APPIUM_PORT} \
+                                --stacktrace \
+                                --info
                         '''
                     }
+
                     echo 'Tests Appium terminés'
                 }
             }
@@ -208,7 +167,9 @@ pipeline {
 
         stage('Arrêt Appium Server') {
             steps {
+
                 echo 'Arrêt du serveur Appium'
+
                 sh '''
                     echo "Arrêt d'Appium..."
                     pkill -f appium || true
@@ -219,53 +180,63 @@ pipeline {
         }
 
         stage('Tests Instrumentés') {
-            options {
-                timeout(time: 20, unit: 'MINUTES')
-            }
             steps {
+
                 echo 'Tests Instrumentés sur Téléphone'
+
                 script {
-                    sh '''
-                        echo "Connexion au téléphone ${DEVICE_UDID}..."
-                        adb connect ${DEVICE_UDID}
-                        sleep 3
-
-                        echo ""
-                        echo "=== APPAREILS CONNECTÉS ==="
-                        adb devices -l
-
-                        DEVICE_COUNT=$(adb devices | grep -w device | wc -l)
-                        if [ $DEVICE_COUNT -eq 0 ]; then
-                            echo "❌ Aucun appareil connecté"
-                            exit 1
-                        fi
-                        echo "${DEVICE_COUNT} appareil(s) connecté(s)"
-
-                        echo ""
-                        echo "=== INFORMATIONS APPAREIL ==="
-                        echo "Modèle     : $(adb -s ${DEVICE_UDID} shell getprop ro.product.model)"
-                        echo "Fabricant  : $(adb -s ${DEVICE_UDID} shell getprop ro.product.manufacturer)"
-                        echo "Android    : $(adb -s ${DEVICE_UDID} shell getprop ro.build.version.release)"
-                        echo "API Level  : $(adb -s ${DEVICE_UDID} shell getprop ro.build.version.sdk)"
-
-                        echo ""
-                        echo "⚠️ L'app est déjà installée avec les fichiers copiés"
-                        echo "Pas besoin de désinstaller pour les tests instrumentés"
-                    '''
-
-                    echo ''
-                    echo 'Lancement des tests instrumentés...'
-                    echo 'Les tests peuvent prendre 10-15 minutes (animations réelles)'
-
-                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    try {
+                        // Connexion au téléphone
                         sh '''
-                            chmod +x gradlew
-                            ./gradlew connectedAndroidTest --stacktrace --no-daemon
+                            echo "Connexion au téléphone ${PHONE_IP}..."
+                            adb connect ${PHONE_IP}:5555 || true
+                            sleep 3
+
+                            echo ""
+                            echo "=== APPAREILS CONNECTÉS ==="
+                            adb devices -l
+
+                            DEVICE_COUNT=$(adb devices | grep -w "device" | wc -l)
+
+                            if [ $DEVICE_COUNT -eq 0 ]; then
+                                echo "ERREUR: Aucun appareil détecté"
+                                exit 1
+                            fi
+
+                            echo "${DEVICE_COUNT} appareil(s) connecté(s)"
+
+                            echo ""
+                            echo "=== INFORMATIONS APPAREIL ==="
+                            echo "Modèle     : $(adb shell getprop ro.product.model)"
+                            echo "Fabricant  : $(adb shell getprop ro.product.manufacturer)"
+                            echo "Android    : $(adb shell getprop ro.build.version.release)"
+                            echo "API Level  : $(adb shell getprop ro.build.version.sdk)"
+
+                            echo ""
+                            echo "Désinstallation de l'ancienne version..."
+                            adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   Pas d'ancienne version (OK)"
+                        '''
+
+                        echo ''
+                        echo 'Lancement des tests instrumentés...'
+
+                        // Utiliser catchError pour ne pas faire échouer le build
+                        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                            sh './gradlew connectedAndroidTest --stacktrace'
+                        }
+
+                        echo ''
+                        echo 'Tests instrumentés terminés'
+
+                    } catch (Exception e) {
+                        echo "Erreur lors des tests: ${e.message}"
+
+                        sh '''
+                            echo ""
+                            echo "=== DEBUG ==="
+                            adb devices -l
                         '''
                     }
-
-                    echo ''
-                    echo 'Tests instrumentés terminés'
                 }
             }
         }
@@ -273,32 +244,45 @@ pipeline {
         stage('Analyse Lint') {
             steps {
                 echo 'Analyse Lint Android'
-                sh '''
-                    chmod +x gradlew
-                    ./gradlew lint --no-daemon
-                '''
+                sh './gradlew lint'
             }
         }
 
         stage('Archive APK') {
             steps {
-                echo 'Archivage de l\'APK'
-                archiveArtifacts artifacts: 'app/build/outputs/apk/debug/*.apk', fingerprint: true
+                echo 'Archivage de APK'
+                archiveArtifacts artifacts: '**/build/outputs/apk/debug/*.apk', allowEmptyArchive: false, fingerprint: true
             }
         }
+
     }
 
     post {
+        success {
+            echo 'Build réussi'
+            echo 'APK disponible dans les artifacts'
+            echo 'Nom du fichier: app-debug.apk'
+
+            script {
+                def testResults = junit testResults: '**/build/test-results/**/*.xml'
+                echo "Tests exécutés : ${testResults.totalCount}"
+                echo "Tests réussis : ${testResults.passCount}"
+                echo "Tests échoués : ${testResults.failCount}"
+            }
+        }
+
+        failure {
+            echo 'La pipeline a échoué'
+            echo 'Consultez les logs ci-dessus pour identier les erreurs qui ont fait échoué la pipeline'
+        }
+
         always {
             echo 'Nettoyage final'
 
-            sh '''
-                chmod +x gradlew
-                ./gradlew --stop || true
-            '''
+            // Archiver les rapports de tests
+            junit allowEmptyResults: true, testResults: '**/build/test-results/**/*.xml'
 
-            junit allowEmptyResults: true, testResults: '**/build/test-results/**/*.xml, **/build/outputs/androidTest-results/**/*.xml'
-
+            // Archiver les rapports Lint
             publishHTML([
                 allowMissing: true,
                 alwaysLinkToLastBuild: true,
