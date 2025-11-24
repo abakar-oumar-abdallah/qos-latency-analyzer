@@ -76,36 +76,33 @@ pipeline {
                         echo "${DEVICE_COUNT} appareil(s) connecté(s)"
 
                         echo ""
-                        echo "=== INFORMATIONS APPAREIL ==="
-                        echo "Modèle     : $(adb shell getprop ro.product.model)"
-                        echo "Fabricant  : $(adb shell getprop ro.product.manufacturer)"
-                        echo "Android    : $(adb shell getprop ro.build.version.release)"
-                        echo "API Level  : $(adb shell getprop ro.build.version.sdk)"
-                        echo "UDID       : $(adb devices | grep -w "device" | awk '{print $1}' | head -n 1)"
-
-                        echo ""
                         echo "Désinstallation de l'ancienne version..."
                         adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   Pas d'ancienne version (OK)"
 
                         echo ""
-                        echo "Préparation des fichiers de test sur le téléphone..."
+                        echo "📂 Préparation des fichiers de test..."
 
-                        # Créer le répertoire sur le téléphone
-                        adb shell mkdir -p /sdcard/Android/data/com.qos.latency.analyzer/files/
+                        # ⚠️ CORRECTION : Nouveau chemin avec /Android/data/
+                        TARGET_DIR="/storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data"
 
-                        # Copier les fichiers JSON depuis les assets du projet vers le téléphone
-                        echo "Copie de test_data.json..."
-                        adb push app/src/main/assets/test_data.json /sdcard/Android/data/com.qos.latency.analyzer/files/test_data.json
+                        # Créer le répertoire
+                        adb shell mkdir -p "${TARGET_DIR}"
 
-                        echo "Copie de data_high_variable_latency.json..."
-                        adb push app/src/main/assets/data_high_variable_latency.json /sdcard/Android/data/com.qos.latency.analyzer/files/high_variable_latency.json
-
-                        echo "Copie de new_data.json..."
-                        adb push app/src/main/assets/new_data.json /sdcard/Android/data/com.qos.latency.analyzer/files/new_data.json
+                        # Copier TOUS les fichiers JSON
+                        echo "Copie des fichiers JSON..."
+                        for json_file in app/src/main/assets/*.json; do
+                            filename=$(basename "$json_file")
+                            echo "  → ${filename}"
+                            adb push "$json_file" "${TARGET_DIR}/${filename}"
+                        done
 
                         echo ""
-                        echo "Vérification des fichiers copiés :"
-                        adb shell ls -la /sdcard/Android/data/com.qos.latency.analyzer/files/
+                        echo "✅ Vérification des fichiers copiés :"
+                        adb shell ls -lh "${TARGET_DIR}/"
+
+                        echo ""
+                        FILE_COUNT=$(adb shell "ls ${TARGET_DIR}/*.json 2>/dev/null | wc -l" | tr -d '\r')
+                        echo "📊 ${FILE_COUNT} fichier(s) JSON disponible(s)"
                     '''
                 }
             }
