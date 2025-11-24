@@ -30,19 +30,6 @@ pipeline {
             }
         }
 
-        stage('Clean') {
-            steps {
-                echo 'Nettoyage du projet'
-                sh '''
-                    chmod +x gradlew
-                    echo "Suppression manuelle du dossier build..."
-                    rm -rf app/build
-                    rm -rf build
-                    echo "✅ Nettoyage terminé"
-                '''
-            }
-        }
-
         stage('Build application android') {
             steps {
                 echo 'Compilation de APK Debug'
