@@ -21,14 +21,20 @@ pipeline {
         stage('Nettoyage') {
             steps {
                 echo 'Nettoyage de l\'espace de travail'
-                sh './gradlew clean'
+                sh '''
+                    chmod +x gradlew
+                    ./gradlew clean
+                '''
             }
         }
 
         stage('Compilation') {
             steps {
                 echo 'Compilation du projet Android'
-                sh './gradlew assembleDebug'
+                sh '''
+                    chmod +x gradlew
+                    ./gradlew assembleDebug
+                '''
             }
         }
 
@@ -36,7 +42,10 @@ pipeline {
             steps {
                 echo 'Exécution des tests unitaires'
                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                    sh './gradlew test --stacktrace'
+                    sh '''
+                        chmod +x gradlew
+                        ./gradlew test --stacktrace
+                    '''
                 }
             }
         }
@@ -136,7 +145,10 @@ pipeline {
                 echo 'Tests Appium sur Téléphone'
                 script {
                     catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                        sh './gradlew appiumTest --stacktrace'
+                        sh '''
+                            chmod +x gradlew
+                            ./gradlew appiumTest --stacktrace
+                        '''
                     }
                     echo 'Tests Appium terminés'
                 }
@@ -195,7 +207,10 @@ pipeline {
                     echo 'Les tests peuvent prendre 10-15 minutes (animations réelles)'
 
                     catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                        sh './gradlew connectedAndroidTest --stacktrace'
+                        sh '''
+                            chmod +x gradlew
+                            ./gradlew connectedAndroidTest --stacktrace
+                        '''
                     }
 
                     echo ''
@@ -207,7 +222,10 @@ pipeline {
         stage('Analyse Lint') {
             steps {
                 echo 'Analyse Lint Android'
-                sh './gradlew lint'
+                sh '''
+                    chmod +x gradlew
+                    ./gradlew lint
+                '''
             }
         }
 
