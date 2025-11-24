@@ -1,11 +1,6 @@
 package com.qos.latency.analyzer;
 
-import android.Manifest;
-import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -13,10 +8,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
 import com.qos.latency.analyzer.controller.LatencyController;
 import com.qos.latency.analyzer.model.LatencyModel;
@@ -42,18 +34,17 @@ import java.util.List;
  * d'entrée principal pour l'utilisateur.
  *
  * @author Équipe QoS Gaming
- * @version 3.1
+ * @version 3.2
  */
 public class MainActivity extends AppCompatActivity implements LatencyController.ControllerListener {
 
     private static final String TAG = "QoS_MainActivity";
 
     // ========================================
-    // NOUVEAUX ATTRIBUTS POUR COPIE ASSETS
+    // CONSTANTES POUR COPIE ASSETS
     // ========================================
     private static final String PREFS_NAME = "QoS_Prefs";
-    private static final String KEY_ASSETS_COPIED = "assets_copied_v1";
-    private static final int REQUEST_PERMISSIONS = 100;
+    private static final String KEY_ASSETS_COPIED = "assets_copied_v2";
     private static final String QOS_DATA_FOLDER = "QoS_Data";
 
     // Composants MVC
@@ -83,13 +74,14 @@ public class MainActivity extends AppCompatActivity implements LatencyController
 
         Log.d(TAG, "========================================");
         Log.d(TAG, "MainActivity onCreate()");
-        Log.d(TAG, "Android Version: " + Build.VERSION.SDK_INT);
+        Log.d(TAG, "Android Version: " + android.os.Build.VERSION.SDK_INT);
         Log.d(TAG, "========================================");
 
         // ========================================
-        // NOUVEAU : Vérifier et copier les assets
+        // NOUVEAU : Copie automatique des assets
+        // Sans permissions requises !
         // ========================================
-        checkAndRequestPermissions();
+        copyAssetsToAppStorageIfNeeded();
 
         initViews();
         initMVC();
@@ -101,85 +93,20 @@ public class MainActivity extends AppCompatActivity implements LatencyController
 
     // ========================================
     // NOUVELLES MÉTHODES POUR COPIE ASSETS
+    // (Sans permissions requises)
     // ========================================
 
     /**
-     * Vérifie si les permissions de stockage sont accordées
+     * Copie les assets vers le stockage de l'app seulement si pas déjà fait.
+     * Utilise getExternalFilesDir() qui ne nécessite AUCUNE permission sur Android 11+
      */
-    private boolean hasStoragePermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            return Environment.isExternalStorageManager();
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            int readPermission = ContextCompat.checkSelfPermission(this,
-                    Manifest.permission.READ_EXTERNAL_STORAGE);
-            int writePermission = ContextCompat.checkSelfPermission(this,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE);
-            return readPermission == PackageManager.PERMISSION_GRANTED &&
-                    writePermission == PackageManager.PERMISSION_GRANTED;
-        }
-        return true;
-    }
-
-    /**
-     * Vérifie et demande les permissions nécessaires
-     */
-    private void checkAndRequestPermissions() {
-        if (hasStoragePermissions()) {
-            Log.d(TAG, "✅ Permissions de stockage accordées");
-            copyAssetsToExternalStorageIfNeeded();
-        } else {
-            Log.d(TAG, "⚠️  Demande des permissions de stockage");
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                ActivityCompat.requestPermissions(this,
-                        new String[]{
-                                Manifest.permission.READ_EXTERNAL_STORAGE,
-                                Manifest.permission.WRITE_EXTERNAL_STORAGE
-                        },
-                        REQUEST_PERMISSIONS);
-            }
-        }
-    }
-
-    /**
-     * Callback après demande de permissions
-     */
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        if (requestCode == REQUEST_PERMISSIONS) {
-            boolean allGranted = true;
-            for (int result : grantResults) {
-                if (result != PackageManager.PERMISSION_GRANTED) {
-                    allGranted = false;
-                    break;
-                }
-            }
-
-            if (allGranted) {
-                Log.d(TAG, "✅ Permissions accordées par l'utilisateur");
-                copyAssetsToExternalStorageIfNeeded();
-            } else {
-                Log.e(TAG, "❌ Permissions refusées");
-                Toast.makeText(this,
-                        "Permissions nécessaires pour copier les fichiers",
-                        Toast.LENGTH_LONG).show();
-            }
-        }
-    }
-
-    /**
-     * Copie les assets vers le stockage externe seulement si pas déjà fait
-     */
-    private void copyAssetsToExternalStorageIfNeeded() {
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+    private void copyAssetsToAppStorageIfNeeded() {
+        android.content.SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         boolean assetsCopied = prefs.getBoolean(KEY_ASSETS_COPIED, false);
 
         if (!assetsCopied) {
             Log.d(TAG, "🔄 Première exécution : copie des assets");
-            boolean success = copyAssetsToExternalStorage();
+            boolean success = copyAssetsToAppStorage();
 
             if (success) {
                 prefs.edit().putBoolean(KEY_ASSETS_COPIED, true).apply();
@@ -196,12 +123,40 @@ public class MainActivity extends AppCompatActivity implements LatencyController
     }
 
     /**
-     * Copie tous les fichiers JSON depuis assets/ vers /storage/emulated/0/QoS_Data/
+     * Retourne le dossier de destination pour les fichiers JSON.
+     * Utilise getExternalFilesDir() qui ne nécessite AUCUNE permission.
+     *
+     * @return Dossier QoS_Data dans le stockage de l'app
+     */
+    private File getQoSDataDirectory() {
+        // getExternalFilesDir() ne nécessite AUCUNE permission sur Android 11+
+        File appExternalDir = getExternalFilesDir(null);
+
+        if (appExternalDir == null) {
+            Log.e(TAG, "❌ getExternalFilesDir() retourne null");
+            return null;
+        }
+
+        File qosDataDir = new File(appExternalDir, QOS_DATA_FOLDER);
+        Log.d(TAG, "📂 Dossier QoS_Data : " + qosDataDir.getAbsolutePath());
+
+        return qosDataDir;
+    }
+
+    /**
+     * Copie tous les fichiers JSON depuis assets/ vers le stockage de l'app.
+     * Ne nécessite AUCUNE permission sur Android 11+
+     *
      * @return true si succès, false sinon
      */
-    private boolean copyAssetsToExternalStorage() {
+    private boolean copyAssetsToAppStorage() {
         try {
-            File qosDataDir = new File(Environment.getExternalStorageDirectory(), QOS_DATA_FOLDER);
+            File qosDataDir = getQoSDataDirectory();
+
+            if (qosDataDir == null) {
+                Log.e(TAG, "❌ Impossible d'obtenir le dossier de destination");
+                return false;
+            }
 
             if (!qosDataDir.exists()) {
                 boolean created = qosDataDir.mkdirs();
@@ -251,6 +206,7 @@ public class MainActivity extends AppCompatActivity implements LatencyController
 
     /**
      * Copie un fichier asset individuel vers une destination
+     *
      * @param assetFilename Nom du fichier dans assets/
      * @param destination Fichier de destination
      * @return true si succès, false sinon
@@ -300,11 +256,9 @@ public class MainActivity extends AppCompatActivity implements LatencyController
      * Cette méthode doit être appelée après setContentView().
      */
     private void initViews() {
-        // Récupération des écrans principaux
         screens[0] = findViewById(R.id.screen_file_selection);
         screens[1] = findViewById(R.id.screen_animation);
 
-        // Récupération des composants UI
         tvSelectedFile = findViewById(R.id.tv_selected_file);
         fileSelectionContainer = findViewById(R.id.file_selection_container);
         tvStatus = findViewById(R.id.tv_status);
@@ -315,7 +269,6 @@ public class MainActivity extends AppCompatActivity implements LatencyController
 
     /**
      * Initialise les composants du pattern MVC.
-     * Crée les instances du modèle, contrôleur et établit les liens entre eux.
      */
     private void initMVC() {
         model = new LatencyModel();
@@ -327,14 +280,12 @@ public class MainActivity extends AppCompatActivity implements LatencyController
      * Configure tous les gestionnaires d'événements pour les boutons de l'interface.
      */
     private void setupEvents() {
-        // Bouton de lancement de l'animation
         btnLaunch.setOnClickListener(v -> {
             if (!controller.isAnimating() && model.hasData()) {
                 controller.startAnimation();
             }
         });
 
-        // Bouton pour revenir à l'écran de sélection de fichier
         findViewById(R.id.btn_change_file).setOnClickListener(v -> {
             if (controller != null) {
                 controller.stopAnimation();
@@ -342,13 +293,11 @@ public class MainActivity extends AppCompatActivity implements LatencyController
             showScreen(0);
         });
 
-        // Bouton pour rafraîchir la liste des fichiers
         findViewById(R.id.btn_refresh_files).setOnClickListener(v -> loadAvailableFiles());
     }
 
     /**
      * Charge et affiche tous les fichiers JSON disponibles dans les assets.
-     * Crée dynamiquement un bouton pour chaque fichier trouvé.
      */
     private void loadAvailableFiles() {
         fileSelectionContainer.removeAllViews();
@@ -371,9 +320,6 @@ public class MainActivity extends AppCompatActivity implements LatencyController
 
     /**
      * Crée un bouton stylisé pour la sélection d'un fichier.
-     *
-     * @param fileName Nom du fichier JSON à représenter
-     * @return Bouton configuré avec le bon style et gestionnaire d'événement
      */
     private Button createSimpleFileButton(String fileName) {
         Button button = new Button(this);
@@ -381,7 +327,6 @@ public class MainActivity extends AppCompatActivity implements LatencyController
         button.setTextColor(0xFFFFFFFF);
         button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF2196F3));
 
-        // Configuration de la mise en page
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -389,22 +334,17 @@ public class MainActivity extends AppCompatActivity implements LatencyController
         params.setMargins(0, 0, 0, 20);
         button.setLayoutParams(params);
 
-        // Gestionnaire d'événement pour la sélection du fichier
         button.setOnClickListener(v -> selectFile(fileName));
         return button;
     }
 
     /**
      * Traite la sélection d'un fichier par l'utilisateur.
-     * Charge les données du fichier et passe à l'écran d'animation.
-     *
-     * @param fileName Nom du fichier sélectionné
      */
     private void selectFile(String fileName) {
         selectedFileName = fileName;
         tvSelectedFile.setText("Fichier : " + fileName.replace(".json", ""));
 
-        // Réinitialise les composants MVC pour le nouveau fichier
         model = new LatencyModel();
         controller = new LatencyController(model, chartView, this);
         controller.setListener(this);
@@ -420,15 +360,12 @@ public class MainActivity extends AppCompatActivity implements LatencyController
 
     /**
      * Affiche l'écran spécifié et masque tous les autres.
-     *
-     * @param screenIndex Index de l'écran à afficher (0=sélection, 1=animation)
      */
     private void showScreen(int screenIndex) {
         for (int i = 0; i < screens.length; i++) {
             screens[i].setVisibility(i == screenIndex ? View.VISIBLE : View.GONE);
         }
 
-        // Configuration spéciale pour l'écran d'animation
         if (screenIndex == 1 && !selectedFileName.isEmpty()) {
             tvStatus.setText("Prêt pour l'analyse");
             tvSeriesInfo.setText("Temps (s) vs RTT (ms)");
@@ -441,10 +378,6 @@ public class MainActivity extends AppCompatActivity implements LatencyController
 
     /**
      * Calcule le temps d'affichage en millisecondes selon le statut du paquet.
-     * Utilise le temps de réception pour les paquets reçus, le temps d'envoi pour les perdus.
-     *
-     * @param packet Données du paquet à analyser
-     * @return Temps d'affichage en millisecondes
      */
     private double getDisplayTimeMs(LatencyModel.RequestData packet) {
         switch (packet.getStatus()) {
@@ -460,9 +393,6 @@ public class MainActivity extends AppCompatActivity implements LatencyController
 
     /**
      * Convertit le statut d'un paquet en texte lisible pour l'interface.
-     *
-     * @param packet Données du paquet
-     * @return Texte décrivant le statut du paquet
      */
     private String getStatusText(LatencyModel.RequestData packet) {
         switch (packet.getStatus()) {
@@ -475,12 +405,7 @@ public class MainActivity extends AppCompatActivity implements LatencyController
     }
 
     // Implémentation des callbacks du ControllerListener
-    // Ces méthodes sont appelées par le contrôleur pour notifier des changements d'état
 
-    /**
-     * Appelé quand l'animation démarre.
-     * Met à jour l'interface pour indiquer que l'animation est en cours.
-     */
     @Override
     public void onAnimationStarted() {
         btnLaunch.setEnabled(false);
@@ -489,33 +414,17 @@ public class MainActivity extends AppCompatActivity implements LatencyController
                 android.content.res.ColorStateList.valueOf(0xFFFF9800));
     }
 
-    /**
-     * Appelé quand l'animation se termine.
-     */
     @Override
     public void onAnimationFinished() {
         tvStatus.setText("Animation terminée");
     }
 
-    /**
-     * Appelé au début d'une nouvelle analyse.
-     *
-     * @param analysisName Nom/description de l'analyse qui commence
-     */
     @Override
     public void onAnalysisStarted(String analysisName) {
         tvStatus.setText(analysisName);
         tvSeriesInfo.setText("Format request_array");
     }
 
-    /**
-     * Appelé à chaque fois qu'un nouveau paquet est affiché sur le graphique.
-     * Met à jour les informations affichées à l'utilisateur.
-     *
-     * @param packet Données du paquet qui vient d'être affiché
-     * @param displayedCount Nombre de paquets déjà affichés
-     * @param totalCount Nombre total de paquets à afficher
-     */
     @Override
     public void onPacketDisplayed(LatencyModel.RequestData packet, int displayedCount, int totalCount) {
         String statusText = getStatusText(packet);
@@ -524,7 +433,6 @@ public class MainActivity extends AppCompatActivity implements LatencyController
         tvStatus.setText(String.format("Paquet %d/%d : %s à %.0f ms",
                 displayedCount, totalCount, statusText, displayTimeMs));
 
-        // Affiche des informations détaillées selon le type de paquet
         if (packet.getStatus() == LatencyModel.PacketStatus.RECEIVED) {
             tvSeriesInfo.setText(String.format("Séq %d : RTT=%.1f ms, RX=%.0f ms",
                     packet.getSequenceNumber(), packet.getRtt(), displayTimeMs));
@@ -537,11 +445,6 @@ public class MainActivity extends AppCompatActivity implements LatencyController
         }
     }
 
-    /**
-     * Appelé pendant la pause de visualisation, à chaque seconde.
-     *
-     * @param remainingSeconds Nombre de secondes restantes avant la fin
-     */
     @Override
     public void onVisualizationPauseCountdown(int remainingSeconds) {
         tvStatus.setText("Vue - " + remainingSeconds + " secondes restantes");
@@ -552,10 +455,6 @@ public class MainActivity extends AppCompatActivity implements LatencyController
         }
     }
 
-    /**
-     * Appelé quand la pause de visualisation se termine.
-     * Remet l'interface dans son état initial.
-     */
     @Override
     public void onVisualizationPauseFinished() {
         tvStatus.setText("Analyse OK – Sélectionnez fichier");
@@ -564,10 +463,6 @@ public class MainActivity extends AppCompatActivity implements LatencyController
                 android.content.res.ColorStateList.valueOf(0xFF4CAF50));
     }
 
-    /**
-     * Appelé quand l'activité est détruite.
-     * Nettoie les ressources pour éviter les fuites mémoire.
-     */
     @Override
     protected void onDestroy() {
         super.onDestroy();

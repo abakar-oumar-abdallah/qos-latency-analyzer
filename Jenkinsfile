@@ -59,7 +59,7 @@ pipeline {
 
         stage('Préparation Device pour Appium') {
             steps {
-                echo 'Préparation du téléphone et des données de test'
+                echo '📱 Préparation du téléphone et des données de test'
 
                 script {
                     sh '''
@@ -67,7 +67,6 @@ pipeline {
                         echo "CONNEXION AU TÉLÉPHONE"
                         echo "========================================="
 
-                        echo "Connexion au téléphone ${PHONE_IP}..."
                         adb connect ${PHONE_IP}:5555 || true
                         sleep 3
 
@@ -78,11 +77,11 @@ pipeline {
                         DEVICE_COUNT=$(adb devices | grep -w "device" | wc -l)
 
                         if [ $DEVICE_COUNT -eq 0 ]; then
-                            echo "ERREUR: Aucun appareil détecté"
+                            echo "❌ ERREUR: Aucun appareil détecté"
                             exit 1
                         fi
 
-                        echo "${DEVICE_COUNT} appareil(s) connecté(s)"
+                        echo "✅ ${DEVICE_COUNT} appareil(s) connecté(s)"
 
                         echo ""
                         echo "=== INFORMATIONS APPAREIL ==="
@@ -90,7 +89,6 @@ pipeline {
                         echo "Fabricant  : $(adb shell getprop ro.product.manufacturer)"
                         echo "Android    : $(adb shell getprop ro.build.version.release)"
                         echo "API Level  : $(adb shell getprop ro.build.version.sdk)"
-                        echo "UDID       : $(adb devices | grep -w "device" | awk '{print $1}' | head -n 1)"
 
                         echo ""
                         echo "========================================="
@@ -105,35 +103,25 @@ pipeline {
                         APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
 
                         if [ ! -f "$APK_PATH" ]; then
-                            echo "ERREUR: APK non trouvé à $APK_PATH"
+                            echo "❌ ERREUR: APK non trouvé à $APK_PATH"
                             exit 1
                         fi
 
                         adb install -r "$APK_PATH"
-                        echo "APK installé avec succès"
-
-                        echo ""
-                        echo "========================================="
-                        echo "ACCORD DES PERMISSIONS"
-                        echo "========================================="
-
-                        echo "Accord des permissions de stockage..."
-                        adb shell pm grant com.qos.latency.analyzer android.permission.READ_EXTERNAL_STORAGE 2>/dev/null || echo "   → Permission non applicable (OK)"
-                        adb shell pm grant com.qos.latency.analyzer android.permission.WRITE_EXTERNAL_STORAGE 2>/dev/null || echo "   → Permission non applicable (OK)"
-                        echo "Permissions accordées"
+                        echo "✅ APK installé avec succès"
 
                         echo ""
                         echo "========================================="
                         echo "COPIE AUTOMATIQUE DES ASSETS"
                         echo "========================================="
 
-                        echo "Démarrage de l'application..."
+                        echo "🚀 Démarrage de l'application..."
                         adb shell am start -n com.qos.latency.analyzer/.MainActivity
 
-                        echo "Attente 5 secondes (copie automatique des fichiers depuis assets)..."
+                        echo "⏳ Attente 5 secondes (copie automatique des fichiers depuis assets)..."
                         sleep 5
 
-                        echo "Arrêt de l'application..."
+                        echo "🛑 Arrêt de l'application..."
                         adb shell am force-stop com.qos.latency.analyzer
 
                         echo ""
@@ -141,27 +129,30 @@ pipeline {
                         echo "VÉRIFICATION FICHIERS COPIÉS"
                         echo "========================================="
 
-                        echo "Contenu de /storage/emulated/0/QoS_Data/ :"
-                        adb shell ls -lh /storage/emulated/0/QoS_Data/ 2>/dev/null || {
-                            echo "ERREUR: Dossier /storage/emulated/0/QoS_Data/ introuvable"
+                        # NOUVEAU CHEMIN : Dans le dossier de l'application
+                        APP_DATA_DIR="/storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data"
+
+                        echo "📂 Contenu de $APP_DATA_DIR :"
+                        adb shell ls -lh "$APP_DATA_DIR" 2>/dev/null || {
+                            echo "❌ ERREUR: Dossier $APP_DATA_DIR introuvable"
                             echo ""
                             echo "=== LOGS APPLICATION ==="
                             adb logcat -d | grep "QoS_MainActivity" | tail -30
                             exit 1
                         }
 
-                        FILE_COUNT=$(adb shell ls /storage/emulated/0/QoS_Data/*.json 2>/dev/null | wc -l)
+                        FILE_COUNT=$(adb shell ls "$APP_DATA_DIR"/*.json 2>/dev/null | wc -l)
 
                         echo ""
                         if [ "$FILE_COUNT" -gt 0 ]; then
-                            echo "$FILE_COUNT fichier(s) JSON disponible(s)"
+                            echo "✅ $FILE_COUNT fichier(s) JSON disponible(s)"
                             echo ""
                             echo "Liste des fichiers :"
-                            adb shell ls /storage/emulated/0/QoS_Data/*.json 2>/dev/null | while read line; do
+                            adb shell ls "$APP_DATA_DIR"/*.json 2>/dev/null | while read line; do
                                 echo "   → $(basename $line)"
                             done
                         else
-                            echo "ERREUR: Aucun fichier JSON trouvé dans /storage/emulated/0/QoS_Data/"
+                            echo "❌ ERREUR: Aucun fichier JSON trouvé dans $APP_DATA_DIR"
                             echo ""
                             echo "=== DEBUG - LOGS APPLICATION ==="
                             adb logcat -d | grep "QoS_MainActivity" | tail -30
@@ -170,7 +161,7 @@ pipeline {
 
                         echo ""
                         echo "========================================="
-                        echo "PRÉPARATION TERMINÉE AVEC SUCCÈS"
+                        echo "✅ PRÉPARATION TERMINÉE AVEC SUCCÈS"
                         echo "========================================="
                     '''
                 }

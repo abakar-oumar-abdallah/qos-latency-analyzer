@@ -3,23 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.qos.latency.analyzer">
 
-    <!-- ========================================= -->
-    <!-- PERMISSIONS POUR STOCKAGE                -->
-    <!-- ========================================= -->
-
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32"
-        tools:ignore="ScopedStorage" />
-
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
-        tools:ignore="ScopedStorage" />
-
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!--
+        PLUS BESOIN DE PERMISSIONS DE STOCKAGE !
+        getExternalFilesDir() ne nécessite aucune permission sur Android 11+
+    -->
 
     <application
         android:allowBackup="true"
@@ -28,7 +15,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.QoSLatencyAnalyzer"
-        android:requestLegacyExternalStorage="true"
         tools:targetApi="31">
 
         <activity
