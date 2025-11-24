@@ -1,16 +1,32 @@
 package com.qos.latency.analyzer;
 
+import android.Manifest;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.qos.latency.analyzer.controller.LatencyController;
 import com.qos.latency.analyzer.model.LatencyModel;
 import com.qos.latency.analyzer.view.ChartView;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
 
 /**
@@ -26,9 +42,19 @@ import java.util.List;
  * d'entrée principal pour l'utilisateur.
  *
  * @author Équipe QoS Gaming
- * @version 3.0
+ * @version 3.1
  */
 public class MainActivity extends AppCompatActivity implements LatencyController.ControllerListener {
+
+    private static final String TAG = "QoS_MainActivity";
+
+    // ========================================
+    // NOUVEAUX ATTRIBUTS POUR COPIE ASSETS
+    // ========================================
+    private static final String PREFS_NAME = "QoS_Prefs";
+    private static final String KEY_ASSETS_COPIED = "assets_copied_v1";
+    private static final int REQUEST_PERMISSIONS = 100;
+    private static final String QOS_DATA_FOLDER = "QoS_Data";
 
     // Composants MVC
     private LatencyModel model;
@@ -55,6 +81,16 @@ public class MainActivity extends AppCompatActivity implements LatencyController
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        Log.d(TAG, "========================================");
+        Log.d(TAG, "MainActivity onCreate()");
+        Log.d(TAG, "Android Version: " + Build.VERSION.SDK_INT);
+        Log.d(TAG, "========================================");
+
+        // ========================================
+        // NOUVEAU : Vérifier et copier les assets
+        // ========================================
+        checkAndRequestPermissions();
+
         initViews();
         initMVC();
         setupEvents();
@@ -62,6 +98,202 @@ public class MainActivity extends AppCompatActivity implements LatencyController
         showScreen(0);
         loadAvailableFiles();
     }
+
+    // ========================================
+    // NOUVELLES MÉTHODES POUR COPIE ASSETS
+    // ========================================
+
+    /**
+     * Vérifie si les permissions de stockage sont accordées
+     */
+    private boolean hasStoragePermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            return Environment.isExternalStorageManager();
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            int readPermission = ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.READ_EXTERNAL_STORAGE);
+            int writePermission = ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            return readPermission == PackageManager.PERMISSION_GRANTED &&
+                    writePermission == PackageManager.PERMISSION_GRANTED;
+        }
+        return true;
+    }
+
+    /**
+     * Vérifie et demande les permissions nécessaires
+     */
+    private void checkAndRequestPermissions() {
+        if (hasStoragePermissions()) {
+            Log.d(TAG, "✅ Permissions de stockage accordées");
+            copyAssetsToExternalStorageIfNeeded();
+        } else {
+            Log.d(TAG, "⚠️  Demande des permissions de stockage");
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                ActivityCompat.requestPermissions(this,
+                        new String[]{
+                                Manifest.permission.READ_EXTERNAL_STORAGE,
+                                Manifest.permission.WRITE_EXTERNAL_STORAGE
+                        },
+                        REQUEST_PERMISSIONS);
+            }
+        }
+    }
+
+    /**
+     * Callback après demande de permissions
+     */
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == REQUEST_PERMISSIONS) {
+            boolean allGranted = true;
+            for (int result : grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    allGranted = false;
+                    break;
+                }
+            }
+
+            if (allGranted) {
+                Log.d(TAG, "✅ Permissions accordées par l'utilisateur");
+                copyAssetsToExternalStorageIfNeeded();
+            } else {
+                Log.e(TAG, "❌ Permissions refusées");
+                Toast.makeText(this,
+                        "Permissions nécessaires pour copier les fichiers",
+                        Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    /**
+     * Copie les assets vers le stockage externe seulement si pas déjà fait
+     */
+    private void copyAssetsToExternalStorageIfNeeded() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        boolean assetsCopied = prefs.getBoolean(KEY_ASSETS_COPIED, false);
+
+        if (!assetsCopied) {
+            Log.d(TAG, "🔄 Première exécution : copie des assets");
+            boolean success = copyAssetsToExternalStorage();
+
+            if (success) {
+                prefs.edit().putBoolean(KEY_ASSETS_COPIED, true).apply();
+                Log.d(TAG, "✅ Assets copiés avec succès");
+                Toast.makeText(this,
+                        "Fichiers de données initialisés",
+                        Toast.LENGTH_SHORT).show();
+            } else {
+                Log.e(TAG, "❌ Échec de la copie des assets");
+            }
+        } else {
+            Log.d(TAG, "✅ Assets déjà copiés précédemment");
+        }
+    }
+
+    /**
+     * Copie tous les fichiers JSON depuis assets/ vers /storage/emulated/0/QoS_Data/
+     * @return true si succès, false sinon
+     */
+    private boolean copyAssetsToExternalStorage() {
+        try {
+            File qosDataDir = new File(Environment.getExternalStorageDirectory(), QOS_DATA_FOLDER);
+
+            if (!qosDataDir.exists()) {
+                boolean created = qosDataDir.mkdirs();
+                if (created) {
+                    Log.d(TAG, "📂 Dossier créé: " + qosDataDir.getAbsolutePath());
+                } else {
+                    Log.e(TAG, "❌ Impossible de créer le dossier");
+                    return false;
+                }
+            } else {
+                Log.d(TAG, "📂 Dossier existe: " + qosDataDir.getAbsolutePath());
+            }
+
+            String[] assetFiles = getAssets().list("");
+
+            if (assetFiles == null || assetFiles.length == 0) {
+                Log.w(TAG, "⚠️  Aucun fichier dans assets/");
+                return false;
+            }
+
+            int copiedCount = 0;
+
+            for (String filename : assetFiles) {
+                if (filename.endsWith(".json")) {
+                    File destination = new File(qosDataDir, filename);
+                    boolean copied = copyAssetFile(filename, destination);
+
+                    if (copied) {
+                        copiedCount++;
+                        Log.d(TAG, "✅ Copié [" + copiedCount + "]: " + filename);
+                    }
+                }
+            }
+
+            Log.d(TAG, "========================================");
+            Log.d(TAG, "✅ COPIE TERMINÉE: " + copiedCount + " fichier(s)");
+            Log.d(TAG, "📍 Destination: " + qosDataDir.getAbsolutePath());
+            Log.d(TAG, "========================================");
+
+            return copiedCount > 0;
+
+        } catch (IOException e) {
+            Log.e(TAG, "❌ Erreur copie assets: " + e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * Copie un fichier asset individuel vers une destination
+     * @param assetFilename Nom du fichier dans assets/
+     * @param destination Fichier de destination
+     * @return true si succès, false sinon
+     */
+    private boolean copyAssetFile(String assetFilename, File destination) {
+        InputStream in = null;
+        OutputStream out = null;
+
+        try {
+            if (destination.exists()) {
+                Log.d(TAG, "⏭️  Fichier existe (skip): " + assetFilename);
+                return true;
+            }
+
+            in = getAssets().open(assetFilename);
+            out = new FileOutputStream(destination);
+
+            byte[] buffer = new byte[1024];
+            int read;
+            while ((read = in.read(buffer)) != -1) {
+                out.write(buffer, 0, read);
+            }
+
+            out.flush();
+            return true;
+
+        } catch (IOException e) {
+            Log.e(TAG, "❌ Erreur copie [" + assetFilename + "]: " + e.getMessage());
+            return false;
+
+        } finally {
+            try {
+                if (in != null) in.close();
+                if (out != null) out.close();
+            } catch (IOException e) {
+                Log.e(TAG, "Erreur fermeture flux: " + e.getMessage());
+            }
+        }
+    }
+
+    // ========================================
+    // MÉTHODES ORIGINALES (INCHANGÉES)
+    // ========================================
 
     /**
      * Récupère toutes les références vers les éléments de l'interface utilisateur.

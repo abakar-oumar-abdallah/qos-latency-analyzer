@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     options {
-        timeout(time:1, unit: 'HOURS')
+        timeout(time: 1, unit: 'HOURS')
         timestamps()
     }
 
@@ -19,9 +19,9 @@ pipeline {
 
     stages {
 
-        stage('Informations Environement') {
+        stage('Informations Environnement') {
             steps {
-                echo 'Vérification de l/environment'
+                echo 'Vérification de l\'environnement'
                 sh '''
                     echo "Java version"
                     java -version
@@ -45,7 +45,7 @@ pipeline {
 
         stage('Build application android') {
             steps {
-                echo 'Compilation de APK Debug'
+                echo 'Compilation de l\'APK Debug'
                 sh './gradlew assembleDebug'
             }
         }
@@ -59,10 +59,14 @@ pipeline {
 
         stage('Préparation Device pour Appium') {
             steps {
-                echo '📱 Connexion au téléphone pour Appium'
+                echo 'Préparation du téléphone et des données de test'
 
                 script {
                     sh '''
+                        echo "========================================="
+                        echo "CONNEXION AU TÉLÉPHONE"
+                        echo "========================================="
+
                         echo "Connexion au téléphone ${PHONE_IP}..."
                         adb connect ${PHONE_IP}:5555 || true
                         sleep 3
@@ -89,28 +93,85 @@ pipeline {
                         echo "UDID       : $(adb devices | grep -w "device" | awk '{print $1}' | head -n 1)"
 
                         echo ""
+                        echo "========================================="
+                        echo "INSTALLATION APPLICATION"
+                        echo "========================================="
+
                         echo "Désinstallation de l'ancienne version..."
-                        adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   Pas d'ancienne version (OK)"
+                        adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   → Pas d'ancienne version (OK)"
 
                         echo ""
-                        echo "Préparation des fichiers de test sur le téléphone..."
+                        echo "Installation de la nouvelle APK..."
+                        APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
 
-                        # Créer le répertoire sur le téléphone
-                        adb shell mkdir -p /sdcard/Android/data/com.qos.latency.analyzer/files/
+                        if [ ! -f "$APK_PATH" ]; then
+                            echo "ERREUR: APK non trouvé à $APK_PATH"
+                            exit 1
+                        fi
 
-                        # Copier les fichiers JSON depuis les assets du projet vers le téléphone
-                        echo "Copie de test_data.json..."
-                        adb push app/src/main/assets/test_data.json /sdcard/Android/data/com.qos.latency.analyzer/files/test_data.json
-
-                        echo "Copie de data_high_variable_latency.json..."
-                        adb push app/src/main/assets/data_high_variable_latency.json /sdcard/Android/data/com.qos.latency.analyzer/files/high_variable_latency.json
-
-                        echo "Copie de new_data.json..."
-                        adb push app/src/main/assets/new_data.json /sdcard/Android/data/com.qos.latency.analyzer/files/new_data.json
+                        adb install -r "$APK_PATH"
+                        echo "APK installé avec succès"
 
                         echo ""
-                        echo "Vérification des fichiers copiés :"
-                        adb shell ls -la /sdcard/Android/data/com.qos.latency.analyzer/files/
+                        echo "========================================="
+                        echo "ACCORD DES PERMISSIONS"
+                        echo "========================================="
+
+                        echo "Accord des permissions de stockage..."
+                        adb shell pm grant com.qos.latency.analyzer android.permission.READ_EXTERNAL_STORAGE 2>/dev/null || echo "   → Permission non applicable (OK)"
+                        adb shell pm grant com.qos.latency.analyzer android.permission.WRITE_EXTERNAL_STORAGE 2>/dev/null || echo "   → Permission non applicable (OK)"
+                        echo "Permissions accordées"
+
+                        echo ""
+                        echo "========================================="
+                        echo "COPIE AUTOMATIQUE DES ASSETS"
+                        echo "========================================="
+
+                        echo "Démarrage de l'application..."
+                        adb shell am start -n com.qos.latency.analyzer/.MainActivity
+
+                        echo "Attente 5 secondes (copie automatique des fichiers depuis assets)..."
+                        sleep 5
+
+                        echo "Arrêt de l'application..."
+                        adb shell am force-stop com.qos.latency.analyzer
+
+                        echo ""
+                        echo "========================================="
+                        echo "VÉRIFICATION FICHIERS COPIÉS"
+                        echo "========================================="
+
+                        echo "Contenu de /storage/emulated/0/QoS_Data/ :"
+                        adb shell ls -lh /storage/emulated/0/QoS_Data/ 2>/dev/null || {
+                            echo "ERREUR: Dossier /storage/emulated/0/QoS_Data/ introuvable"
+                            echo ""
+                            echo "=== LOGS APPLICATION ==="
+                            adb logcat -d | grep "QoS_MainActivity" | tail -30
+                            exit 1
+                        }
+
+                        FILE_COUNT=$(adb shell ls /storage/emulated/0/QoS_Data/*.json 2>/dev/null | wc -l)
+
+                        echo ""
+                        if [ "$FILE_COUNT" -gt 0 ]; then
+                            echo "$FILE_COUNT fichier(s) JSON disponible(s)"
+                            echo ""
+                            echo "Liste des fichiers :"
+                            adb shell ls /storage/emulated/0/QoS_Data/*.json 2>/dev/null | while read line; do
+                                echo "   → $(basename $line)"
+                            done
+                        else
+                            echo "ERREUR: Aucun fichier JSON trouvé dans /storage/emulated/0/QoS_Data/"
+                            echo ""
+                            echo "=== DEBUG - LOGS APPLICATION ==="
+                            adb logcat -d | grep "QoS_MainActivity" | tail -30
+                            exit 1
+                        fi
+
+                        echo ""
+                        echo "========================================="
+                        echo "PRÉPARATION TERMINÉE AVEC SUCCÈS"
+                        echo "========================================="
                     '''
                 }
             }
@@ -118,7 +179,6 @@ pipeline {
 
         stage('Démarrage Appium Server') {
             steps {
-
                 echo 'Démarrage du serveur Appium'
 
                 script {
@@ -150,7 +210,6 @@ pipeline {
         }
 
         stage('Tests Appium') {
-            // AJOUTÉ : Timeout de 20 minutes pour les tests longs
             options {
                 timeout(time: 20, unit: 'MINUTES')
             }
@@ -177,7 +236,6 @@ pipeline {
 
         stage('Arrêt Appium Server') {
             steps {
-
                 echo 'Arrêt du serveur Appium'
 
                 sh '''
@@ -190,7 +248,6 @@ pipeline {
         }
 
         stage('Tests Instrumentés') {
-            //Timeout de 20 minutes pour les tests longs
             options {
                 timeout(time: 20, unit: 'MINUTES')
             }
@@ -200,7 +257,6 @@ pipeline {
 
                 script {
                     try {
-                        // Connexion au téléphone
                         sh '''
                             echo "Connexion au téléphone ${PHONE_IP}..."
                             adb connect ${PHONE_IP}:5555 || true
@@ -228,14 +284,13 @@ pipeline {
 
                             echo ""
                             echo "Désinstallation de l'ancienne version..."
-                            adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   Pas d'ancienne version (OK)"
+                            adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   → Pas d'ancienne version (OK)"
                         '''
 
                         echo ''
                         echo 'Lancement des tests instrumentés...'
-                        echo '⚠Les tests peuvent prendre 10-15 minutes (animations réelles)'
+                        echo 'Les tests peuvent prendre 10-15 minutes (animations réelles)'
 
-                        // Utiliser catchError pour ne pas faire échouer le build
                         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                             sh './gradlew connectedAndroidTest --stacktrace'
                         }
@@ -265,7 +320,7 @@ pipeline {
 
         stage('Archive APK') {
             steps {
-                echo 'Archivage de APK'
+                echo 'Archivage de l\'APK'
                 archiveArtifacts artifacts: '**/build/outputs/apk/debug/*.apk', allowEmptyArchive: false, fingerprint: true
             }
         }
@@ -288,7 +343,7 @@ pipeline {
 
         failure {
             echo 'La pipeline a échoué'
-            echo 'Consultez les logs ci-dessus pour identier les erreurs qui ont fait échoué la pipeline'
+            echo 'Consultez les logs ci-dessus pour identifier les erreurs'
         }
 
         always {
