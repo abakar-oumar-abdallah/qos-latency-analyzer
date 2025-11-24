@@ -297,7 +297,7 @@ public class MainActivity extends AppCompatActivity implements LatencyController
     }
 
     /**
-     * Charge et affiche tous les fichiers JSON disponibles dans les assets.
+     * Charge et affiche tous les fichiers JSON disponibles dans le stockage de l'app.
      */
     private void loadAvailableFiles() {
         fileSelectionContainer.removeAllViews();
