@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    options {
+        timeout(time:1, unit: 'HOURS')
+        timestamps()
+    }
+
     triggers {
         pollSCM('H */4 * * 1-5')
     }
@@ -145,14 +150,19 @@ pipeline {
         }
 
         stage('Tests Appium') {
-            steps {
+            // AJOUTÉ : Timeout de 20 minutes pour les tests longs
+            options {
+                timeout(time: 20, unit: 'MINUTES')
+            }
 
+            steps {
                 echo '📱 Exécution des tests Appium'
 
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                         sh '''
                             echo "Lancement des tests Appium..."
+                            echo "Les tests peuvent prendre 10-15 minutes (animations réelles)"
                             ./gradlew appiumTest \
                                 -Dappium.server=http://127.0.0.1:${APPIUM_PORT} \
                                 --stacktrace \
@@ -180,8 +190,12 @@ pipeline {
         }
 
         stage('Tests Instrumentés') {
-            steps {
+            //Timeout de 20 minutes pour les tests longs
+            options {
+                timeout(time: 20, unit: 'MINUTES')
+            }
 
+            steps {
                 echo 'Tests Instrumentés sur Téléphone'
 
                 script {
@@ -219,6 +233,7 @@ pipeline {
 
                         echo ''
                         echo 'Lancement des tests instrumentés...'
+                        echo '⚠Les tests peuvent prendre 10-15 minutes (animations réelles)'
 
                         // Utiliser catchError pour ne pas faire échouer le build
                         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {

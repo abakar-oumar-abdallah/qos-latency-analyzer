@@ -13,15 +13,12 @@ import static org.hamcrest.Matchers.not;
 
 import androidx.test.espresso.Espresso;
 import androidx.test.espresso.IdlingPolicies;
-import androidx.test.espresso.IdlingRegistry;
-import androidx.test.espresso.IdlingResource;
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.LargeTest;
 
 import com.qos.latency.analyzer.utils.DisableAnimationsRule;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -32,11 +29,12 @@ import java.util.concurrent.TimeUnit;
 /**
  * Tests d'intégration complets - VERSION CORRIGÉE
  *
- * PRINCIPALES :
+ * CORRECTIONS PRINCIPALES :
  * - Augmentation des timeouts IdlingResource
  * - Meilleure gestion des attentes avec waitForView()
  * - Utilisation de perform() au lieu de check() avant les actions
  * - Gestion des éléments qui nécessitent un scroll
+ * - NOUVEAU : Test flux complet avec animations réelles
  */
 @RunWith(AndroidJUnit4.class)
 @LargeTest
@@ -99,7 +97,6 @@ public class IntegrationTest {
 
     /**
      * Test du flux complet : Démarrage → Sélection → Animation
-     * Utilisation des nouvelles helpers
      */
     @Test
     public void testCompleteUserFlow() throws InterruptedException {
@@ -108,21 +105,21 @@ public class IntegrationTest {
                 .check(matches(isDisplayed()));
 
         // Attendre avec helper personnalisé
-        waitForText("test_data", 10000); // 10 secondes max
+        waitForText("test_data", 10000);
 
         // Forcer Espresso à attendre
         Espresso.onIdle();
-        Thread.sleep(1000); // Sécurité supplémentaire
+        Thread.sleep(1000);
 
         // D'abord scrollTo, puis check, puis click
         onView(withText("test_data"))
-                .perform(scrollTo()); // Scroller d'abord
+                .perform(scrollTo());
 
-        Thread.sleep(500); // Laisser le scroll se terminer
+        Thread.sleep(500);
 
         onView(withText("test_data"))
-                .check(matches(isDisplayed())) // Vérifier qu'il est visible
-                .perform(click()); // Puis cliquer
+                .check(matches(isDisplayed()))
+                .perform(click());
 
         // Attendre la navigation avec helper
         waitForView(R.id.screen_animation, 5000);
@@ -195,44 +192,36 @@ public class IntegrationTest {
     }
 
     /**
-     * Test de rafraîchissement - CRITIQUE
-     * Nouvelle approche avec helpers
+     * Test de rafraîchissement
      */
     @Test
     public void testRefreshFileList() throws InterruptedException {
-        // Attendre le chargement initial
         waitForText("test_data", 10000);
         Espresso.onIdle();
         Thread.sleep(1500);
 
-        // Vérifier que le fichier est présent
-        onView(withText("test_data"))
-                .perform(scrollTo()); // Scroller vers le fichier
-
-        Thread.sleep(500);
-
-        onView(withText("test_data"))
-                .check(matches(isDisplayed())); // Vérifier la visibilité
-
-        // Cliquer sur actualiser
-        onView(withId(R.id.btn_refresh_files))
-                .perform(click());
-
-        // Attendre le rechargement
-        Thread.sleep(2000); // Temps pour l'animation de refresh
-        Espresso.onIdle(); // Attendre que l'UI soit idle
-
-        // Attendre que les fichiers réapparaissent
-        waitForText("test_data", 10000);
-        Thread.sleep(1500);
-
-        // Scroller à nouveau si nécessaire
         onView(withText("test_data"))
                 .perform(scrollTo());
 
         Thread.sleep(500);
 
-        // Vérifier que les fichiers sont affichés
+        onView(withText("test_data"))
+                .check(matches(isDisplayed()));
+
+        onView(withId(R.id.btn_refresh_files))
+                .perform(click());
+
+        Thread.sleep(2000);
+        Espresso.onIdle();
+
+        waitForText("test_data", 10000);
+        Thread.sleep(1500);
+
+        onView(withText("test_data"))
+                .perform(scrollTo());
+
+        Thread.sleep(500);
+
         onView(withText("test_data"))
                 .check(matches(isDisplayed()));
     }
@@ -306,5 +295,108 @@ public class IntegrationTest {
 
         onView(withId(R.id.tv_status))
                 .check(matches(not(withText("Prêt pour l'analyse"))));
+    }
+
+    /**
+     * NOUVEAU : Test flux complet avec animation réelle
+     * Ce test vérifie le parcours complet utilisateur :
+     * - Sélection fichier
+     * - Lancement animation
+     * - Observation de la courbe pendant 15s
+     * - Retour sélection
+     * - Nouveau fichier et observation 10s
+     */
+    @Test
+    public void testCompleteFlowWithRealAnimation() throws InterruptedException {
+        System.out.println("Début test flux complet avec animations");
+
+        // 1. Attendre chargement initial
+        System.out.println("⏳ Attente chargement fichiers...");
+        waitForText("test_data", 10000);
+        Espresso.onIdle();
+        Thread.sleep(1500);
+
+        // 2. Sélectionner premier fichier
+        System.out.println("Sélection test_data");
+        onView(withText("test_data"))
+                .perform(scrollTo());
+        Thread.sleep(500);
+        onView(withText("test_data"))
+                .perform(click());
+
+        waitForView(R.id.screen_animation, 5000);
+        Thread.sleep(1000);
+
+        // 3. Vérifier état prêt
+        onView(withId(R.id.tv_status))
+                .check(matches(withText("Prêt pour l'analyse")));
+
+        // 4. Lancer animation
+        System.out.println("🎬 Lancement animation #1");
+        onView(withId(R.id.btn_launch))
+                .perform(click());
+
+        Thread.sleep(2000);
+
+        // 5. Vérifier animation en cours
+        onView(withId(R.id.btn_launch))
+                .check(matches(withText(containsString("Animation"))));
+
+        // 6. OBSERVER L'ANIMATION (15 secondes)
+        System.out.println("⏳ Observation animation pendant 15 secondes...");
+        for (int i = 1; i <= 15; i++) {
+            Thread.sleep(1000);
+            System.out.println("   Animation : " + i + "s / 15s");
+        }
+
+        // 7. Vérifier que la courbe est visible
+        onView(withId(R.id.chart_view))
+                .check(matches(isDisplayed()));
+
+        // 8. Attendre fin animation (max 45s supplémentaires)
+        System.out.println("Attente fin animation...");
+        Thread.sleep(45000);
+
+        // 9. Retour à la liste
+        System.out.println("🔙 Retour à la sélection");
+        onView(withId(R.id.btn_change_file))
+                .perform(click());
+
+        waitForView(R.id.screen_file_selection, 5000);
+        Thread.sleep(1500);
+
+        // 10. Sélectionner autre fichier (ou même fichier)
+        System.out.println("Sélection fichier #2");
+        waitForText("test_data", 10000);
+        Thread.sleep(1000);
+
+        onView(withText("test_data"))
+                .perform(scrollTo());
+        Thread.sleep(500);
+        onView(withText("test_data"))
+                .perform(click());
+
+        waitForView(R.id.screen_animation, 5000);
+        Thread.sleep(1000);
+
+        // 11. Lancer 2ème animation
+        System.out.println("🎬 Lancement animation #2");
+        onView(withId(R.id.btn_launch))
+                .perform(click());
+
+        Thread.sleep(2000);
+
+        // 12. OBSERVER 2ème ANIMATION (10 secondes)
+        System.out.println("⏳ Observation 2ème animation pendant 10 secondes...");
+        for (int i = 1; i <= 10; i++) {
+            Thread.sleep(1000);
+            System.out.println("   Animation #2 : " + i + "s / 10s");
+        }
+
+        // 13. Vérification finale
+        onView(withId(R.id.chart_view))
+                .check(matches(isDisplayed()));
+
+        System.out.println("Test flux complet terminé avec succès !");
     }
 }
