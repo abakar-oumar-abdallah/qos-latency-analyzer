@@ -241,10 +241,31 @@ public class LatencyModel {
 
             // Lire le fichier
             InputStream inputStream = new FileInputStream(file);
+
+            // ✅ NOUVEAU : Utiliser la méthode commune de parsing
+            loadDataFromStream(inputStream, fileName);
+
+            inputStream.close();
+
+        } catch (Exception e) {
+            android.util.Log.e("LatencyModel", "❌ Erreur chargement " + fileName + ": " + e.getMessage(), e);
+            throw new RuntimeException("Erreur chargement " + fileName + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * ✅ NOUVELLE MÉTHODE : Charge les données depuis un InputStream.
+     * Permet de tester le parsing JSON sans dépendre du système de fichiers Android.
+     *
+     * @param inputStream Stream contenant le JSON
+     * @param fileName Nom du fichier (pour l'affichage)
+     * @throws RuntimeException Si le format JSON est invalide
+     */
+    public void loadDataFromStream(InputStream inputStream, String fileName) {
+        try {
             Scanner scanner = new Scanner(inputStream, "UTF-8");
             String jsonString = scanner.useDelimiter("\\A").next();
             scanner.close();
-            inputStream.close();
 
             this.currentFileName = fileName;
             JSONObject root = new JSONObject(jsonString);
@@ -277,7 +298,7 @@ public class LatencyModel {
             }
 
         } catch (Exception e) {
-            android.util.Log.e("LatencyModel", "❌ Erreur chargement " + fileName + ": " + e.getMessage(), e);
+            android.util.Log.e("LatencyModel", "❌ Erreur parsing " + fileName + ": " + e.getMessage(), e);
             throw new RuntimeException("Erreur chargement " + fileName + ": " + e.getMessage());
         }
     }

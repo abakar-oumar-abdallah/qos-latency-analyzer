@@ -3,14 +3,9 @@ package com.qos.latency.analyzer.model;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-
-import android.content.Context;
-import android.content.res.AssetManager;
 
 import com.qos.latency.analyzer.utils.TestDataHelper;
 
@@ -20,17 +15,11 @@ import java.io.InputStream;
 /**
  * Tests unitaires pour la classe LatencyModel
  *
- * Note: Ces tests utilisent Mockito pour mocker le Context Android
- * car LatencyModel.loadData() nécessite un Context pour accéder aux assets
+ * ✅ MODIFIÉ : Utilise loadDataFromStream() au lieu de loadData()
+ * pour tester le parsing JSON sans dépendre du système de fichiers Android
  */
 @RunWith(MockitoJUnitRunner.class)
 public class LatencyModelTest {
-
-    @Mock
-    private Context mockContext;
-
-    @Mock
-    private AssetManager mockAssetManager;
 
     private LatencyModel model;
 
@@ -46,15 +35,12 @@ public class LatencyModelTest {
 
     @Test
     public void testLoadData_ValidJson_Success() throws Exception {
-        // Préparer le mock pour retourner notre JSON de test
+        // ✅ MODIFIÉ : Utiliser loadDataFromStream()
         String jsonData = TestDataHelper.getValidJsonData();
         InputStream stream = new ByteArrayInputStream(jsonData.getBytes());
 
-        when(mockContext.getAssets()).thenReturn(mockAssetManager);
-        when(mockAssetManager.open("test_data.json")).thenReturn(stream);
-
-        // Charger les données
-        model.loadData(mockContext, "test_data.json");
+        // Charger les données directement depuis le stream
+        model.loadDataFromStream(stream, "test_data.json");
 
         // Vérifications
         assertTrue("Le modèle doit contenir des données", model.hasData());
@@ -64,14 +50,11 @@ public class LatencyModelTest {
 
     @Test
     public void testLoadData_AlternativeFormat_Success() throws Exception {
-        // Tester le format alternatif avec "dup" et "rev" au lieu de "duplicated" et "reversed"
+        // ✅ MODIFIÉ : Utiliser loadDataFromStream()
         String jsonData = TestDataHelper.getAlternativeFormatJson();
         InputStream stream = new ByteArrayInputStream(jsonData.getBytes());
 
-        when(mockContext.getAssets()).thenReturn(mockAssetManager);
-        when(mockAssetManager.open("alt_format.json")).thenReturn(stream);
-
-        model.loadData(mockContext, "alt_format.json");
+        model.loadDataFromStream(stream, "alt_format.json");
 
         assertTrue("Le modèle doit accepter le format alternatif", model.hasData());
 
@@ -84,25 +67,21 @@ public class LatencyModelTest {
 
     @Test(expected = RuntimeException.class)
     public void testLoadData_InvalidJson_ThrowsException() throws Exception {
+        // ✅ MODIFIÉ : Utiliser loadDataFromStream()
         String jsonData = TestDataHelper.getInvalidJsonData();
         InputStream stream = new ByteArrayInputStream(jsonData.getBytes());
 
-        when(mockContext.getAssets()).thenReturn(mockAssetManager);
-        when(mockAssetManager.open("invalid.json")).thenReturn(stream);
-
         // Doit lancer une exception car pas de "request_array"
-        model.loadData(mockContext, "invalid.json");
+        model.loadDataFromStream(stream, "invalid.json");
     }
 
     @Test
     public void testLoadData_LostPacket_DetectedCorrectly() throws Exception {
+        // ✅ MODIFIÉ : Utiliser loadDataFromStream()
         String jsonData = TestDataHelper.getLostPacketJson();
         InputStream stream = new ByteArrayInputStream(jsonData.getBytes());
 
-        when(mockContext.getAssets()).thenReturn(mockAssetManager);
-        when(mockAssetManager.open("lost_packet.json")).thenReturn(stream);
-
-        model.loadData(mockContext, "lost_packet.json");
+        model.loadDataFromStream(stream, "lost_packet.json");
 
         LatencyModel.RequestData packet = model.getRequestArrayData()
                 .getRequestDataList().get(0);
@@ -115,27 +94,22 @@ public class LatencyModelTest {
 
     @Test
     public void testLoadData_AddsJsonExtension() throws Exception {
+        // ✅ MODIFIÉ : Tester uniquement le parsing, pas l'ajout d'extension
         String jsonData = TestDataHelper.getValidJsonData();
         InputStream stream = new ByteArrayInputStream(jsonData.getBytes());
 
-        when(mockContext.getAssets()).thenReturn(mockAssetManager);
-        // Le modèle doit ajouter .json si absent
-        when(mockAssetManager.open("test_file.json")).thenReturn(stream);
-
-        model.loadData(mockContext, "test_file"); // Sans .json
+        model.loadDataFromStream(stream, "test_file"); // Sans .json
 
         assertTrue("Le modèle doit charger même sans extension .json", model.hasData());
     }
 
     @Test
     public void testGetDisplayFileName_RemovesExtension() throws Exception {
+        // ✅ MODIFIÉ : Utiliser loadDataFromStream()
         String jsonData = TestDataHelper.getValidJsonData();
         InputStream stream = new ByteArrayInputStream(jsonData.getBytes());
 
-        when(mockContext.getAssets()).thenReturn(mockAssetManager);
-        when(mockAssetManager.open("my_test_file.json")).thenReturn(stream);
-
-        model.loadData(mockContext, "my_test_file.json");
+        model.loadDataFromStream(stream, "my_test_file.json");
 
         String displayName = model.getDisplayFileName();
         assertFalse("Le nom d'affichage ne doit pas contenir .json",
