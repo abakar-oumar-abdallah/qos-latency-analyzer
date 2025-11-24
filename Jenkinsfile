@@ -21,12 +21,30 @@ pipeline {
     }
 
     stages {
+        stage('Préparation') {
+            steps {
+                echo 'Nettoyage et préparation de l\'environnement'
+                sh '''
+                    echo "🧹 Arrêt du daemon Gradle..."
+                    chmod +x gradlew
+                    ./gradlew --stop || true
+
+                    echo "🗑️ Suppression des fichiers de build..."
+                    rm -rf app/build/intermediates
+                    rm -rf app/build/tmp
+                    rm -rf .gradle
+
+                    echo "✅ Environnement prêt"
+                '''
+            }
+        }
+
         stage('Compilation') {
             steps {
                 echo 'Compilation du projet Android'
                 sh '''
                     chmod +x gradlew
-                    ./gradlew assembleDebug
+                    ./gradlew assembleDebug --no-daemon
                 '''
 
                 sh '''
@@ -46,7 +64,7 @@ pipeline {
                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                     sh '''
                         chmod +x gradlew
-                        ./gradlew test --stacktrace
+                        ./gradlew test --stacktrace --no-daemon
                     '''
                 }
             }
@@ -150,7 +168,7 @@ pipeline {
 
                     if [ "${FILE_COUNT}" -eq "0" ]; then
                         echo ""
-                        echo "❌ ERREUR CRITIQUE: Aucun fichier JSON trouvé !"
+                        echo "❌ ERREUR CRITIQUE: Aucun fichiers JSON trouvé !"
                         echo ""
                         echo "📋 LOGS APPLICATION :"
                         adb -s ${DEVICE_UDID} logcat -d | grep -i "QoS_MainActivity"
@@ -180,7 +198,7 @@ pipeline {
                     catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                         sh '''
                             chmod +x gradlew
-                            ./gradlew appiumTest --stacktrace
+                            ./gradlew appiumTest --stacktrace --no-daemon
                         '''
                     }
                     echo 'Tests Appium terminés'
@@ -242,7 +260,7 @@ pipeline {
                     catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                         sh '''
                             chmod +x gradlew
-                            ./gradlew connectedAndroidTest --stacktrace
+                            ./gradlew connectedAndroidTest --stacktrace --no-daemon
                         '''
                     }
 
@@ -257,7 +275,7 @@ pipeline {
                 echo 'Analyse Lint Android'
                 sh '''
                     chmod +x gradlew
-                    ./gradlew lint
+                    ./gradlew lint --no-daemon
                 '''
             }
         }
@@ -273,6 +291,11 @@ pipeline {
     post {
         always {
             echo 'Nettoyage final'
+
+            sh '''
+                chmod +x gradlew
+                ./gradlew --stop || true
+            '''
 
             junit allowEmptyResults: true, testResults: '**/build/test-results/**/*.xml, **/build/outputs/androidTest-results/**/*.xml'
 
