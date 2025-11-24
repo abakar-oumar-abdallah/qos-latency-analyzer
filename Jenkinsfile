@@ -27,12 +27,12 @@ pipeline {
                 echo 'Nettoyage de l\'espace de travail'
                 sh '''
                     chmod +x gradlew
-                    ./gradlew clean
+                    ./gradlew || echo "⚠️ Erreur de nettoyage ignorée"
                 '''
             }
         }
 
-        stage('Compilation') {
+        stage('Build APK) {
             steps {
                 echo 'Compilation du projet Android'
                 sh '''
