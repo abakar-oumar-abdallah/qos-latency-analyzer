@@ -15,25 +15,33 @@ pipeline {
         PHONE_PORT = '5555'
         DEVICE_UDID = "${PHONE_IP}:${PHONE_PORT}"
         APPIUM_PORT = '4723'
+
+        // ⚠️ CRITIQUE : Définir le workspace
+        WORKSPACE_DIR = "${WORKSPACE}"
+        APK_PATH = "${WORKSPACE}/app/build/outputs/apk/debug/app-debug.apk"
     }
 
     stages {
         stage('Nettoyage') {
             steps {
                 echo 'Nettoyage de l\'espace de travail'
-                sh '''
-                    chmod +x gradlew
-                    ./gradlew clean
-                '''
+                sh './gradlew clean'
             }
         }
 
         stage('Compilation') {
             steps {
                 echo 'Compilation du projet Android'
+                sh './gradlew assembleDebug'
+
+                // Vérification que l'APK existe
                 sh '''
-                    chmod +x gradlew
-                    ./gradlew assembleDebug
+                    if [ ! -f "${APK_PATH}" ]; then
+                        echo "❌ ERREUR: APK introuvable à ${APK_PATH}"
+                        exit 1
+                    fi
+                    echo "✅ APK trouvé: ${APK_PATH}"
+                    ls -lh "${APK_PATH}"
                 '''
             }
         }
@@ -42,10 +50,7 @@ pipeline {
             steps {
                 echo 'Exécution des tests unitaires'
                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                    sh '''
-                        chmod +x gradlew
-                        ./gradlew test --stacktrace
-                    '''
+                    sh './gradlew test --stacktrace'
                 }
             }
         }
@@ -73,32 +78,61 @@ pipeline {
                 echo 'Préparation du téléphone pour les tests'
                 sh '''
                     echo "==================================="
-                    echo "PRÉPARATION DEVICE"
+                    echo "PRÉPARATION DEVICE POUR APPIUM"
                     echo "==================================="
+                    echo "Workspace: ${WORKSPACE_DIR}"
+                    echo "APK Path: ${APK_PATH}"
 
                     # Connexion au téléphone
+                    echo ""
                     echo "📱 Connexion au téléphone ${DEVICE_UDID}..."
                     adb connect ${DEVICE_UDID}
                     sleep 3
 
                     # Vérification connexion
+                    echo ""
+                    echo "📋 Appareils connectés:"
                     adb devices -l
 
-                    # Installation de l'APK
+                    # Désinstallation complète
+                    echo ""
+                    echo "🗑️ Désinstallation complète..."
+                    adb -s ${DEVICE_UDID} uninstall com.qos.latency.analyzer || echo "App non installée"
+                    sleep 2
+
+                    # Installation de l'APK avec chemin absolu
                     echo ""
                     echo "📦 Installation de l'APK..."
-                    adb -s ${DEVICE_UDID} install -r app/build/outputs/apk/debug/app-debug.apk
+                    echo "Chemin: ${APK_PATH}"
+                    adb -s ${DEVICE_UDID} install "${APK_PATH}"
+
+                    if [ $? -ne 0 ]; then
+                        echo "❌ ERREUR: Échec de l'installation"
+                        exit 1
+                    fi
+                    echo "✅ APK installé avec succès"
+
+                    # Vérification installation
+                    echo ""
+                    echo "🔍 Vérification installation..."
+                    adb -s ${DEVICE_UDID} shell pm list packages | grep latency
+
+                    # Effacer les logs
+                    echo ""
+                    echo "🧹 Effacer les logs..."
+                    adb -s ${DEVICE_UDID} logcat -c
 
                     # Lancement de l'app pour copier les assets
                     echo ""
                     echo "🚀 Lancement de l'app (copie des assets)..."
                     adb -s ${DEVICE_UDID} shell am start -n com.qos.latency.analyzer/.MainActivity
 
-                    # Attente copie assets (10 secondes pour être sûr)
+                    # Attente copie assets (10 secondes)
                     echo "⏳ Attente 10 secondes pour copie des assets..."
                     sleep 10
 
                     # Arrêt de l'app
+                    echo ""
                     echo "🛑 Arrêt de l'application..."
                     adb -s ${DEVICE_UDID} shell am force-stop com.qos.latency.analyzer
                     sleep 2
@@ -111,7 +145,16 @@ pipeline {
                     APP_DATA_DIR="/storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data"
 
                     echo "📂 Contenu de ${APP_DATA_DIR} :"
-                    adb -s ${DEVICE_UDID} shell ls -lh "${APP_DATA_DIR}" || echo "❌ ERREUR: Dossier introuvable"
+                    adb -s ${DEVICE_UDID} shell ls -lh "${APP_DATA_DIR}"
+
+                    if [ $? -ne 0 ]; then
+                        echo ""
+                        echo "❌ ERREUR: Dossier QoS_Data introuvable !"
+                        echo ""
+                        echo "📋 LOGS APPLICATION (copie assets) :"
+                        adb -s ${DEVICE_UDID} logcat -d | grep -i "QoS_MainActivity"
+                        exit 1
+                    fi
 
                     echo ""
                     echo "📊 Nombre de fichiers JSON :"
@@ -122,16 +165,19 @@ pipeline {
                         echo ""
                         echo "❌ ERREUR CRITIQUE: Aucun fichier JSON trouvé !"
                         echo ""
-                        echo "📋 LOGS APPLICATION (dernières 50 lignes) :"
-                        adb -s ${DEVICE_UDID} logcat -d | grep -i "QoS_MainActivity" | tail -50
-                        echo ""
-                        echo "📋 LOGS SYSTÈME (dernières 50 lignes) :"
-                        adb -s ${DEVICE_UDID} logcat -d | grep -i "latency.analyzer" | tail -50
+                        echo "📋 LOGS APPLICATION :"
+                        adb -s ${DEVICE_UDID} logcat -d | grep -i "QoS_MainActivity"
                         exit 1
                     else
+                        echo ""
                         echo "✅ ${FILE_COUNT} fichier(s) JSON disponible(s)"
+                        echo ""
+                        echo "📋 LOGS COPIE (confirmation) :"
+                        adb -s ${DEVICE_UDID} logcat -d | grep "QoS_MainActivity" | grep "COPIE TERMINÉE"
                     fi
 
+                    echo "==================================="
+                    echo "✅ PRÉPARATION TERMINÉE"
                     echo "==================================="
                 '''
             }
@@ -145,10 +191,7 @@ pipeline {
                 echo 'Tests Appium sur Téléphone'
                 script {
                     catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                        sh '''
-                            chmod +x gradlew
-                            ./gradlew appiumTest --stacktrace
-                        '''
+                        sh './gradlew appiumTest --stacktrace'
                     }
                     echo 'Tests Appium terminés'
                 }
@@ -192,14 +235,14 @@ pipeline {
 
                         echo ""
                         echo "=== INFORMATIONS APPAREIL ==="
-                        echo "Modèle     : $(adb shell getprop ro.product.model)"
-                        echo "Fabricant  : $(adb shell getprop ro.product.manufacturer)"
-                        echo "Android    : $(adb shell getprop ro.build.version.release)"
-                        echo "API Level  : $(adb shell getprop ro.build.version.sdk)"
+                        echo "Modèle     : $(adb -s ${DEVICE_UDID} shell getprop ro.product.model)"
+                        echo "Fabricant  : $(adb -s ${DEVICE_UDID} shell getprop ro.product.manufacturer)"
+                        echo "Android    : $(adb -s ${DEVICE_UDID} shell getprop ro.build.version.release)"
+                        echo "API Level  : $(adb -s ${DEVICE_UDID} shell getprop ro.build.version.sdk)"
 
                         echo ""
-                        echo "Désinstallation de l'ancienne version..."
-                        adb uninstall com.qos.latency.analyzer || true
+                        echo "⚠️ L'app est déjà installée avec les fichiers copiés"
+                        echo "Pas besoin de désinstaller pour les tests instrumentés"
                     '''
 
                     echo ''
@@ -207,10 +250,7 @@ pipeline {
                     echo 'Les tests peuvent prendre 10-15 minutes (animations réelles)'
 
                     catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                        sh '''
-                            chmod +x gradlew
-                            ./gradlew connectedAndroidTest --stacktrace
-                        '''
+                        sh './gradlew connectedAndroidTest --stacktrace'
                     }
 
                     echo ''
@@ -222,10 +262,7 @@ pipeline {
         stage('Analyse Lint') {
             steps {
                 echo 'Analyse Lint Android'
-                sh '''
-                    chmod +x gradlew
-                    ./gradlew lint
-                '''
+                sh './gradlew lint'
             }
         }
 
