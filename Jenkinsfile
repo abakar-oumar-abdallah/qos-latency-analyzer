@@ -16,25 +16,20 @@ pipeline {
         DEVICE_UDID = "${PHONE_IP}:${PHONE_PORT}"
         APPIUM_PORT = '4723'
 
+        // ⚠️ CRITIQUE : Définir le workspace
         WORKSPACE_DIR = "${WORKSPACE}"
         APK_PATH = "${WORKSPACE}/app/build/outputs/apk/debug/app-debug.apk"
     }
 
     stages {
-        stage('Fix Permissions') {
+        stage('Préparation') {
             steps {
-                echo 'Correction des permissions gradlew'
+                echo 'Préparation de l\'environnement'
                 sh '''
-                    echo "📝 Permissions avant:"
-                    ls -la gradlew || echo "gradlew introuvable"
-
-                    echo ""
-                    echo "🔧 Application chmod +x..."
+                    echo "🔧 Configuration des permissions..."
                     chmod +x gradlew
-
-                    echo ""
-                    echo "✅ Permissions après:"
                     ls -la gradlew
+                    echo "✅ Permissions configurées"
                 '''
             }
         }
@@ -51,6 +46,7 @@ pipeline {
                 echo 'Compilation du projet Android'
                 sh './gradlew assembleDebug'
 
+                // Vérification que l'APK existe
                 sh '''
                     if [ ! -f "${APK_PATH}" ]; then
                         echo "❌ ERREUR: APK introuvable à ${APK_PATH}"
@@ -99,20 +95,24 @@ pipeline {
                     echo "Workspace: ${WORKSPACE_DIR}"
                     echo "APK Path: ${APK_PATH}"
 
+                    # Connexion au téléphone
                     echo ""
                     echo "📱 Connexion au téléphone ${DEVICE_UDID}..."
                     adb connect ${DEVICE_UDID}
                     sleep 3
 
+                    # Vérification connexion
                     echo ""
                     echo "📋 Appareils connectés:"
                     adb devices -l
 
+                    # Désinstallation complète
                     echo ""
                     echo "🗑️ Désinstallation complète..."
                     adb -s ${DEVICE_UDID} uninstall com.qos.latency.analyzer || echo "App non installée"
                     sleep 2
 
+                    # Installation de l'APK avec chemin absolu
                     echo ""
                     echo "📦 Installation de l'APK..."
                     echo "Chemin: ${APK_PATH}"
@@ -124,26 +124,32 @@ pipeline {
                     fi
                     echo "✅ APK installé avec succès"
 
+                    # Vérification installation
                     echo ""
                     echo "🔍 Vérification installation..."
                     adb -s ${DEVICE_UDID} shell pm list packages | grep latency
 
+                    # Effacer les logs
                     echo ""
                     echo "🧹 Effacer les logs..."
                     adb -s ${DEVICE_UDID} logcat -c
 
+                    # Lancement de l'app pour copier les assets
                     echo ""
                     echo "🚀 Lancement de l'app (copie des assets)..."
                     adb -s ${DEVICE_UDID} shell am start -n com.qos.latency.analyzer/.MainActivity
 
+                    # Attente copie assets (10 secondes)
                     echo "⏳ Attente 10 secondes pour copie des assets..."
                     sleep 10
 
+                    # Arrêt de l'app
                     echo ""
                     echo "🛑 Arrêt de l'application..."
                     adb -s ${DEVICE_UDID} shell am force-stop com.qos.latency.analyzer
                     sleep 2
 
+                    # Vérification des fichiers copiés
                     echo ""
                     echo "==================================="
                     echo "VÉRIFICATION FICHIERS"
