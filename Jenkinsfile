@@ -25,6 +25,7 @@ pipeline {
                     echo ${ANDROID_HOME}
                     echo ""
                     echo "Gradle wrapper"
+                    chmod +x gradlew
                     ls -la gradlew
                 '''
             }
@@ -33,7 +34,10 @@ pipeline {
         stage('Build application android') {
             steps {
                 echo 'Compilation de APK Debug'
-                sh './gradlew assembleDebug'
+                sh '''
+                    chmod +x gradlew
+                    ./gradlew assembleDebug
+                '''
             }
         }
 
@@ -68,13 +72,21 @@ pipeline {
                         echo "${DEVICE_COUNT} appareil(s) connecté(s)"
 
                         echo ""
+                        echo "=== INFORMATIONS APPAREIL ==="
+                        echo "Modèle     : $(adb shell getprop ro.product.model)"
+                        echo "Fabricant  : $(adb shell getprop ro.product.manufacturer)"
+                        echo "Android    : $(adb shell getprop ro.build.version.release)"
+                        echo "API Level  : $(adb shell getprop ro.build.version.sdk)"
+                        echo "UDID       : $(adb devices | grep -w "device" | awk '{print $1}' | head -n 1)"
+
+                        echo ""
                         echo "Désinstallation de l'ancienne version..."
                         adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   Pas d'ancienne version (OK)"
 
                         echo ""
                         echo "📂 Préparation des fichiers de test..."
 
-                        # ⚠️ CORRECTION : Nouveau chemin avec /Android/data/
+                        # ✅ CORRECTION : Nouveau chemin avec /Android/data/
                         TARGET_DIR="/storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data"
 
                         # Créer le répertoire
@@ -83,9 +95,11 @@ pipeline {
                         # Copier TOUS les fichiers JSON
                         echo "Copie des fichiers JSON..."
                         for json_file in app/src/main/assets/*.json; do
-                            filename=$(basename "$json_file")
-                            echo "  → ${filename}"
-                            adb push "$json_file" "${TARGET_DIR}/${filename}"
+                            if [ -f "$json_file" ]; then
+                                filename=$(basename "$json_file")
+                                echo "  → ${filename}"
+                                adb push "$json_file" "${TARGET_DIR}/${filename}"
+                            fi
                         done
 
                         echo ""
@@ -95,6 +109,11 @@ pipeline {
                         echo ""
                         FILE_COUNT=$(adb shell "ls ${TARGET_DIR}/*.json 2>/dev/null | wc -l" | tr -d '\r')
                         echo "📊 ${FILE_COUNT} fichier(s) JSON disponible(s)"
+
+                        if [ "${FILE_COUNT}" -eq "0" ]; then
+                            echo "❌ ERREUR: Aucun fichier JSON copié !"
+                            exit 1
+                        fi
                     '''
                 }
             }
@@ -202,8 +221,7 @@ pipeline {
                             echo "API Level  : $(adb shell getprop ro.build.version.sdk)"
 
                             echo ""
-                            echo "Désinstallation de l'ancienne version..."
-                            adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   Pas d'ancienne version (OK)"
+                            echo "⚠️ L'app n'est pas encore installée, elle sera installée par les tests"
                         '''
 
                         echo ''
