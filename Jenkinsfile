@@ -90,22 +90,22 @@ pipeline {
                         echo ""
                         echo "Préparation des fichiers de test sur le téléphone..."
 
-                        # Créer le répertoire sur le téléphone
-                        adb shell mkdir -p /sdcard/Android/data/com.qos.latency.analyzer/files/
+                        # Créer le répertoire sur le téléphone (CORRIGÉ: bon chemin + QoS_Data)
+                        adb shell mkdir -p /storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data/
 
-                        # Copier les fichiers JSON depuis les assets du projet vers le téléphone
+                        # Copier les fichiers JSON depuis les assets du projet vers le téléphone (CORRIGÉ: bon chemin)
                         echo "Copie de test_data.json..."
-                        adb push app/src/main/assets/test_data.json /sdcard/Android/data/com.qos.latency.analyzer/files/test_data.json
+                        adb push app/src/main/assets/test_data.json /storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data/test_data.json
 
                         echo "Copie de data_high_variable_latency.json..."
-                        adb push app/src/main/assets/data_high_variable_latency.json /sdcard/Android/data/com.qos.latency.analyzer/files/high_variable_latency.json
+                        adb push app/src/main/assets/data_high_variable_latency.json /storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data/high_variable_latency.json
 
                         echo "Copie de new_data.json..."
-                        adb push app/src/main/assets/new_data.json /sdcard/Android/data/com.qos.latency.analyzer/files/new_data.json
+                        adb push app/src/main/assets/new_data.json /storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data/new_data.json
 
                         echo ""
                         echo "Vérification des fichiers copiés :"
-                        adb shell ls -la /sdcard/Android/data/com.qos.latency.analyzer/files/
+                        adb shell ls -la /storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data/
                     '''
                 }
             }
