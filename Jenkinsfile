@@ -67,12 +67,10 @@ pipeline {
                         adb devices -l
 
                         DEVICE_COUNT=$(adb devices | grep -w "device" | wc -l)
-
                         if [ $DEVICE_COUNT -eq 0 ]; then
                             echo "ERREUR: Aucun appareil détecté"
                             exit 1
                         fi
-
                         echo "${DEVICE_COUNT} appareil(s) connecté(s)"
 
                         echo ""
@@ -81,31 +79,40 @@ pipeline {
                         echo "Fabricant  : $(adb shell getprop ro.product.manufacturer)"
                         echo "Android    : $(adb shell getprop ro.build.version.release)"
                         echo "API Level  : $(adb shell getprop ro.build.version.sdk)"
-                        echo "UDID       : $(adb devices | grep -w "device" | awk '{print $1}' | head -n 1)"
 
                         echo ""
                         echo "Désinstallation de l'ancienne version..."
                         adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   Pas d'ancienne version (OK)"
 
                         echo ""
-                        echo "Préparation des fichiers de test sur le téléphone..."
-
-                        # Créer le répertoire sur le téléphone (CORRIGÉ: bon chemin + QoS_Data)
-                        adb shell mkdir -p /storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data/
-
-                        # Copier les fichiers JSON depuis les assets du projet vers le téléphone (CORRIGÉ: bon chemin)
-                        echo "Copie de test_data.json..."
-                        adb push app/src/main/assets/test_data.json /storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data/test_data.json
-
-                        echo "Copie de data_high_variable_latency.json..."
-                        adb push app/src/main/assets/data_high_variable_latency.json /storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data/high_variable_latency.json
-
-                        echo "Copie de new_data.json..."
-                        adb push app/src/main/assets/new_data.json /storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data/new_data.json
+                        echo "=== INSTALLATION DE L'APP ==="
+                        adb install -r app/build/outputs/apk/debug/app-debug.apk
 
                         echo ""
-                        echo "Vérification des fichiers copiés :"
-                        adb shell ls -la /storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data/
+                        echo "=== COPIE DES FICHIERS DE TEST ==="
+                        TARGET_DIR="/storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data"
+                        adb shell mkdir -p "${TARGET_DIR}"
+
+                        echo "Copie de test_data.json..."
+                        adb push app/src/main/assets/test_data.json "${TARGET_DIR}/test_data.json"
+
+                        echo "Copie de data_high_variable_latency.json..."
+                        adb push app/src/main/assets/data_high_variable_latency.json "${TARGET_DIR}/high_variable_latency.json"
+
+                        echo "Copie de new_data.json..."
+                        adb push app/src/main/assets/new_data.json "${TARGET_DIR}/new_data.json"
+
+                        echo ""
+                        echo "=== VÉRIFICATION ==="
+                        FILE_COUNT=$(adb shell "ls ${TARGET_DIR}/*.json 2>/dev/null | wc -l")
+                        echo "📊 ${FILE_COUNT} fichier(s) JSON disponible(s)"
+
+                        if [ "${FILE_COUNT}" -eq "0" ]; then
+                            echo "❌ ERREUR: Aucun fichier trouvé après copie"
+                            exit 1
+                        fi
+
+                        adb shell ls -la "${TARGET_DIR}/"
                     '''
                 }
             }
