@@ -40,6 +40,8 @@ public class BaseAppiumTest {
 
         driver = new AndroidDriver(new URL("http://127.0.0.1:4723"), options);
 
+
+
         wait = new WebDriverWait(driver, Duration.ofSeconds(15));
         longWait = new WebDriverWait(driver, Duration.ofSeconds(45));
 

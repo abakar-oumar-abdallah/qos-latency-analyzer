@@ -151,23 +151,19 @@ pipeline {
             }
         }
 
-        stage('Tests Appium') {
+        stage('Tests Appium - Visualisation Complète') {
             steps {
-
-                echo '📱 Exécution des tests Appium'
+                echo '📱 Test Appium avec visualisation (105 secondes)'
 
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                         sh '''
-                            echo "Lancement des tests Appium..."
                             ./gradlew appiumTest \
                                 -Dappium.server=http://127.0.0.1:${APPIUM_PORT} \
-                                --stacktrace \
-                                --info
+                                --tests "com.qos.latency.analyzer.appium.CompleteFlowAppiumTest.testCompleteExecutionFlowWithVisualization" \
+                                --stacktrace
                         '''
                     }
-
-                    echo 'Tests Appium terminés'
                 }
             }
         }
@@ -186,62 +182,16 @@ pipeline {
             }
         }
 
-        stage('Tests Instrumentés') {
+        stage('Tests Instrumentés - Visualisation Complète') {
             steps {
-
-                echo 'Tests Instrumentés sur Téléphone'
+                echo '📱 Test Espresso avec visualisation (105 secondes)'
 
                 script {
-                    try {
-                        // Connexion au téléphone
+                    catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                         sh '''
-                            echo "Connexion au téléphone ${PHONE_IP}..."
-                            adb connect ${PHONE_IP}:5555 || true
-                            sleep 3
-
-                            echo ""
-                            echo "=== APPAREILS CONNECTÉS ==="
-                            adb devices -l
-
-                            DEVICE_COUNT=$(adb devices | grep -w "device" | wc -l)
-
-                            if [ $DEVICE_COUNT -eq 0 ]; then
-                                echo "ERREUR: Aucun appareil détecté"
-                                exit 1
-                            fi
-
-                            echo "${DEVICE_COUNT} appareil(s) connecté(s)"
-
-                            echo ""
-                            echo "=== INFORMATIONS APPAREIL ==="
-                            echo "Modèle     : $(adb shell getprop ro.product.model)"
-                            echo "Fabricant  : $(adb shell getprop ro.product.manufacturer)"
-                            echo "Android    : $(adb shell getprop ro.build.version.release)"
-                            echo "API Level  : $(adb shell getprop ro.build.version.sdk)"
-
-                            echo ""
-                            echo "Désinstallation de l'ancienne version..."
-                            adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   Pas d'ancienne version (OK)"
-                        '''
-
-                        echo ''
-                        echo 'Lancement des tests instrumentés...'
-
-                        // Utiliser catchError pour ne pas faire échouer le build
-                        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                            sh './gradlew connectedAndroidTest --stacktrace'
-                        }
-
-                        echo ''
-                        echo 'Tests instrumentés terminés'
-
-                    } catch (Exception e) {
-                        echo "Erreur lors des tests: ${e.message}"
-
-                        sh '''
-                            echo ""
-                            echo "=== DEBUG ==="
-                            adb devices -l
+                            ./gradlew connectedAndroidTest \
+                                --tests "com.qos.latency.analyzer.CompleteFlowTest.testCompleteExecutionFlowWithVisualization" \
+                                --stacktrace
                         '''
                     }
                 }
