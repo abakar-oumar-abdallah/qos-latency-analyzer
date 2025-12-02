@@ -3,8 +3,6 @@ package com.qos.latency.analyzer.model;
 import android.content.Context;
 import org.json.JSONObject;
 import java.io.InputStream;
-import java.io.FileInputStream;
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -240,60 +238,6 @@ public class LatencyModel {
 
         } catch (Exception e) {
             throw new RuntimeException("Erreur chargement " + fileName + ": " + e.getMessage());
-        }
-    }
-
-    // ✅ NOUVELLE MÉTHODE AJOUTÉE - Charge depuis le stockage externe
-    /**
-     * Charge les données depuis un fichier du stockage externe (utilisé par Jenkins/Appium).
-     * Cette méthode permet de charger des fichiers depuis le répertoire
-     * /storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data/
-     *
-     * @param externalFile Objet File pointant vers le fichier JSON à charger
-     * @throws RuntimeException Si le fichier n'existe pas ou a un format invalide
-     */
-    public void loadDataFromFile(File externalFile) {
-        try {
-            if (!externalFile.exists()) {
-                throw new RuntimeException("Fichier introuvable : " + externalFile.getAbsolutePath());
-            }
-
-            InputStream inputStream = new FileInputStream(externalFile);
-            Scanner scanner = new Scanner(inputStream, "UTF-8");
-            String jsonString = scanner.useDelimiter("\\A").next();
-            scanner.close();
-            inputStream.close();
-
-            this.currentFileName = externalFile.getName();
-            JSONObject root = new JSONObject(jsonString);
-            requestArrayData.clear();
-
-            if (root.has("request_array")) {
-                JSONObject requestArray = root.getJSONObject("request_array");
-
-                for (int i = 0; i < requestArray.length(); i++) {
-                    String key = String.valueOf(i);
-                    if (requestArray.has(key)) {
-                        JSONObject request = requestArray.getJSONObject(key);
-
-                        long txTimestamp = request.getLong("tx_ts");
-                        long rxTimestamp = request.optLong("rx_ts", 0);
-                        double rtt = request.getDouble("rtt");
-
-                        boolean duplicated = request.optInt("duplicated", 0) == 1 ||
-                                request.optInt("dup", 0) == 1;
-                        boolean reversed = request.optInt("reversed", 0) == 1 ||
-                                request.optInt("rev", 0) == 1;
-
-                        requestArrayData.addRequestData(i, txTimestamp, rxTimestamp, rtt, duplicated, reversed);
-                    }
-                }
-            } else {
-                throw new RuntimeException("Format non supporté : 'request_array' requis");
-            }
-
-        } catch (Exception e) {
-            throw new RuntimeException("Erreur chargement " + externalFile.getName() + ": " + e.getMessage());
         }
     }
 

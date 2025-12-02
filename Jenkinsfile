@@ -54,7 +54,7 @@ pipeline {
 
         stage('Préparation Device pour Appium') {
             steps {
-                echo 'Connexion au téléphone pour Appium'
+                echo '📱 Connexion au téléphone pour Appium'
 
                 script {
                     sh '''
@@ -89,30 +89,7 @@ pipeline {
                         adb install -r app/build/outputs/apk/debug/app-debug.apk
 
                         echo ""
-                        echo "=== COPIE DES FICHIERS DE TEST ==="
-                        TARGET_DIR="/storage/emulated/0/Android/data/com.qos.latency.analyzer/files/QoS_Data"
-                        adb shell mkdir -p "${TARGET_DIR}"
-
-                        echo "Copie de test_data.json..."
-                        adb push app/src/main/assets/test_data.json "${TARGET_DIR}/test_data.json"
-
-                        echo "Copie de data_high_variable_latency.json..."
-                        adb push app/src/main/assets/data_high_variable_latency.json "${TARGET_DIR}/high_variable_latency.json"
-
-                        echo "Copie de new_data.json..."
-                        adb push app/src/main/assets/new_data.json "${TARGET_DIR}/new_data.json"
-
-                        echo ""
-                        echo "=== VÉRIFICATION ==="
-                        FILE_COUNT=$(adb shell "ls ${TARGET_DIR}/*.json 2>/dev/null | wc -l")
-                        echo "${FILE_COUNT} fichier(s) JSON disponible(s)"
-
-                        if [ "${FILE_COUNT}" -eq "0" ]; then
-                            echo "ERREUR: Aucun fichier trouvé après copie"
-                            exit 1
-                        fi
-
-                        adb shell ls -la "${TARGET_DIR}/"
+                        echo "✅ Préparation terminée - L'app lira les fichiers depuis les assets"
                     '''
                 }
             }
@@ -153,11 +130,10 @@ pipeline {
 
         stage('Tests Appium') {
             steps {
-                echo 'Test Appium avec visualisation (105 secondes)'
+                echo '📱 Test Appium avec visualisation (105 secondes)'
 
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                        // Utilisation de -Pandroid.testInstrumentationRunnerArguments.class
                         sh '''
                             ./gradlew appiumTest \
                                 -Dappium.server=http://127.0.0.1:${APPIUM_PORT} \
@@ -186,11 +162,10 @@ pipeline {
 
         stage('Tests Instrumentés') {
             steps {
-                echo 'Test Espresso avec visualisation (105 secondes)'
+                echo '📱 Test Espresso avec visualisation (105 secondes)'
 
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                        // Utilisation de -Pandroid.testInstrumentationRunnerArguments.class
                         sh '''
                             ./gradlew connectedAndroidTest \
                                 -Pandroid.testInstrumentationRunnerArguments.class=com.qos.latency.analyzer.CompleteFlowTest#testCompleteExecutionFlowWithVisualization \
@@ -234,7 +209,7 @@ pipeline {
 
         failure {
             echo 'La pipeline a échoué'
-            echo 'Consultez les logs ci-dessus pour identier les erreurs qui ont fait échoué la pipeline'
+            echo 'Consultez les logs ci-dessus pour identifier les erreurs'
         }
 
         always {

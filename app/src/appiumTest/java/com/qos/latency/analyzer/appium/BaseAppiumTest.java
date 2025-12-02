@@ -13,7 +13,6 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Duration;
-import java.util.List;
 
 public class BaseAppiumTest {
 
@@ -38,10 +37,12 @@ public class BaseAppiumTest {
         options.setCapability("settings[waitForIdleTimeout]", 50);
         options.setCapability("settings[waitForSelectorTimeout]", 500);
 
-        driver = new AndroidDriver(new URL("http://127.0.0.1:4723"), options);
+        // URL dynamique pour supporter exécution locale et Jenkins
+        String appiumServer = System.getProperty("appium.server", "http://127.0.0.1:4723");
+        driver = new AndroidDriver(new URL(appiumServer), options);
 
         wait = new WebDriverWait(driver, Duration.ofSeconds(15));
-        longWait = new WebDriverWait(driver, Duration.ofSeconds(90)); // ✅ CORRECTION: Augmenté de 45s à 90s
+        longWait = new WebDriverWait(driver, Duration.ofSeconds(90));
 
         Thread.sleep(2000);
     }
@@ -77,25 +78,6 @@ public class BaseAppiumTest {
         } catch (Exception e) {
             // Ignorer si le scroll échoue
         }
-    }
-
-    // ✅ CORRECTION: Timeout augmenté et méthode améliorée
-    protected void waitForFilesLoaded() {
-        WebDriverWait extraLongWait = new WebDriverWait(driver, Duration.ofSeconds(90)); // 90 secondes
-        extraLongWait.until(driver -> {
-            try {
-                List<WebElement> files = driver.findElements(
-                        By.xpath("//android.widget.TextView[contains(@text, '.json') or @text='test_data' or @text='new_data' or contains(@text, 'latency')]")
-                );
-                boolean found = files.size() > 0;
-                if (found) {
-                    System.out.println("✅ " + files.size() + " fichier(s) JSON détecté(s)");
-                }
-                return found;
-            } catch (Exception e) {
-                return false;
-            }
-        });
     }
 
     protected WebElement waitForElement(By locator) {
