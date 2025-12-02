@@ -54,7 +54,7 @@ pipeline {
 
         stage('Préparation Device pour Appium') {
             steps {
-                echo '📱 Connexion au téléphone pour Appium'
+                echo 'Connexion au téléphone pour Appium'
 
                 script {
                     sh '''
@@ -105,10 +105,10 @@ pipeline {
                         echo ""
                         echo "=== VÉRIFICATION ==="
                         FILE_COUNT=$(adb shell "ls ${TARGET_DIR}/*.json 2>/dev/null | wc -l")
-                        echo "📊 ${FILE_COUNT} fichier(s) JSON disponible(s)"
+                        echo "${FILE_COUNT} fichier(s) JSON disponible(s)"
 
                         if [ "${FILE_COUNT}" -eq "0" ]; then
-                            echo "❌ ERREUR: Aucun fichier trouvé après copie"
+                            echo "ERREUR: Aucun fichier trouvé après copie"
                             exit 1
                         fi
 
@@ -151,13 +151,13 @@ pipeline {
             }
         }
 
-        stage('Tests Appium - Visualisation Complète') {
+        stage('Tests Appium') {
             steps {
-                echo '📱 Test Appium avec visualisation (105 secondes)'
+                echo 'Test Appium avec visualisation (105 secondes)'
 
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                        // ✅ CORRECTION: Utilisation de -Pandroid.testInstrumentationRunnerArguments.class
+                        // Utilisation de -Pandroid.testInstrumentationRunnerArguments.class
                         sh '''
                             ./gradlew appiumTest \
                                 -Dappium.server=http://127.0.0.1:${APPIUM_PORT} \
@@ -184,13 +184,13 @@ pipeline {
             }
         }
 
-        stage('Tests Instrumentés - Visualisation Complète') {
+        stage('Tests Instrumentés') {
             steps {
-                echo '📱 Test Espresso avec visualisation (105 secondes)'
+                echo 'Test Espresso avec visualisation (105 secondes)'
 
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                        // ✅ CORRECTION: Utilisation de -Pandroid.testInstrumentationRunnerArguments.class
+                        // Utilisation de -Pandroid.testInstrumentationRunnerArguments.class
                         sh '''
                             ./gradlew connectedAndroidTest \
                                 -Pandroid.testInstrumentationRunnerArguments.class=com.qos.latency.analyzer.CompleteFlowTest#testCompleteExecutionFlowWithVisualization \
