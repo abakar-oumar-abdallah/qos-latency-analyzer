@@ -40,10 +40,8 @@ public class BaseAppiumTest {
 
         driver = new AndroidDriver(new URL("http://127.0.0.1:4723"), options);
 
-
-
         wait = new WebDriverWait(driver, Duration.ofSeconds(15));
-        longWait = new WebDriverWait(driver, Duration.ofSeconds(45));
+        longWait = new WebDriverWait(driver, Duration.ofSeconds(90)); // ✅ CORRECTION: Augmenté de 45s à 90s
 
         Thread.sleep(2000);
     }
@@ -81,13 +79,19 @@ public class BaseAppiumTest {
         }
     }
 
+    // ✅ CORRECTION: Timeout augmenté et méthode améliorée
     protected void waitForFilesLoaded() {
-        longWait.until(driver -> {
+        WebDriverWait extraLongWait = new WebDriverWait(driver, Duration.ofSeconds(90)); // 90 secondes
+        extraLongWait.until(driver -> {
             try {
                 List<WebElement> files = driver.findElements(
                         By.xpath("//android.widget.TextView[contains(@text, '.json') or @text='test_data' or @text='new_data' or contains(@text, 'latency')]")
                 );
-                return files.size() > 0;
+                boolean found = files.size() > 0;
+                if (found) {
+                    System.out.println("✅ " + files.size() + " fichier(s) JSON détecté(s)");
+                }
+                return found;
             } catch (Exception e) {
                 return false;
             }

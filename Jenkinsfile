@@ -157,11 +157,13 @@ pipeline {
 
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                        // ✅ CORRECTION: Utilisation de -Pandroid.testInstrumentationRunnerArguments.class
                         sh '''
                             ./gradlew appiumTest \
                                 -Dappium.server=http://127.0.0.1:${APPIUM_PORT} \
-                                --tests "com.qos.latency.analyzer.appium.CompleteFlowAppiumTest.testCompleteExecutionFlowWithVisualization" \
-                                --stacktrace
+                                -Pandroid.testInstrumentationRunnerArguments.class=com.qos.latency.analyzer.appium.CompleteFlowAppiumTest#testCompleteExecutionFlowWithVisualization \
+                                --stacktrace \
+                                --info
                         '''
                     }
                 }
@@ -188,10 +190,12 @@ pipeline {
 
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                        // ✅ CORRECTION: Utilisation de -Pandroid.testInstrumentationRunnerArguments.class
                         sh '''
                             ./gradlew connectedAndroidTest \
-                                --tests "com.qos.latency.analyzer.CompleteFlowTest.testCompleteExecutionFlowWithVisualization" \
-                                --stacktrace
+                                -Pandroid.testInstrumentationRunnerArguments.class=com.qos.latency.analyzer.CompleteFlowTest#testCompleteExecutionFlowWithVisualization \
+                                --stacktrace \
+                                --info
                         '''
                     }
                 }

@@ -11,6 +11,8 @@ import com.qos.latency.analyzer.controller.LatencyController;
 import com.qos.latency.analyzer.model.LatencyModel;
 import com.qos.latency.analyzer.view.ChartView;
 
+import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -114,15 +116,31 @@ public class MainActivity extends AppCompatActivity implements LatencyController
         findViewById(R.id.btn_refresh_files).setOnClickListener(v -> loadAvailableFiles());
     }
 
+    // ✅ CORRECTION: Nouvelle méthode pour lire depuis le stockage externe ET les assets
     /**
-     * Charge et affiche tous les fichiers JSON disponibles dans les assets.
+     * Charge et affiche tous les fichiers JSON disponibles depuis le stockage externe
+     * ET depuis les assets de l'application.
      * Crée dynamiquement un bouton pour chaque fichier trouvé.
      */
     private void loadAvailableFiles() {
         fileSelectionContainer.removeAllViews();
-        List<String> availableFiles = LatencyModel.getAvailableDataFiles(this);
 
-        if (availableFiles.isEmpty()) {
+        // ✅ Charger depuis le stockage externe (pour Jenkins/Appium)
+        List<String> externalFiles = getExternalStorageFiles();
+
+        // ✅ Charger depuis les assets (pour utilisation normale)
+        List<String> assetFiles = LatencyModel.getAvailableDataFiles(this);
+
+        // Fusionner les deux listes sans doublons
+        List<String> allFiles = new ArrayList<>();
+        allFiles.addAll(externalFiles);
+        for (String assetFile : assetFiles) {
+            if (!allFiles.contains(assetFile)) {
+                allFiles.add(assetFile);
+            }
+        }
+
+        if (allFiles.isEmpty()) {
             TextView noFilesText = new TextView(this);
             noFilesText.setText("Aucun fichier JSON trouvé");
             noFilesText.setTextSize(16);
@@ -131,10 +149,35 @@ public class MainActivity extends AppCompatActivity implements LatencyController
             return;
         }
 
-        for (String fileName : availableFiles) {
+        for (String fileName : allFiles) {
             Button fileButton = createSimpleFileButton(fileName);
             fileSelectionContainer.addView(fileButton);
         }
+    }
+
+    // ✅ CORRECTION: Nouvelle méthode pour scanner le stockage externe
+    /**
+     * Récupère la liste des fichiers JSON depuis le répertoire de stockage externe.
+     * Ce répertoire est utilisé par Jenkins/Appium pour copier les fichiers de test.
+     *
+     * @return Liste des noms de fichiers JSON trouvés
+     */
+    private List<String> getExternalStorageFiles() {
+        List<String> fileNames = new ArrayList<>();
+
+        // Chemin utilisé par Jenkins : /storage/emulated/0/Android/data/[package]/files/QoS_Data
+        File externalDir = new File(getExternalFilesDir(null), "QoS_Data");
+
+        if (externalDir.exists() && externalDir.isDirectory()) {
+            File[] files = externalDir.listFiles((dir, name) -> name.endsWith(".json"));
+            if (files != null) {
+                for (File file : files) {
+                    fileNames.add(file.getName());
+                }
+            }
+        }
+
+        return fileNames;
     }
 
     /**
@@ -162,9 +205,11 @@ public class MainActivity extends AppCompatActivity implements LatencyController
         return button;
     }
 
+    // ✅ CORRECTION: Méthode modifiée pour charger depuis stockage externe OU assets
     /**
      * Traite la sélection d'un fichier par l'utilisateur.
-     * Charge les données du fichier et passe à l'écran d'animation.
+     * Charge les données du fichier depuis le stockage externe en priorité,
+     * puis depuis les assets si non trouvé.
      *
      * @param fileName Nom du fichier sélectionné
      */
@@ -178,9 +223,21 @@ public class MainActivity extends AppCompatActivity implements LatencyController
         controller.setListener(this);
 
         try {
-            model.loadData(this, fileName);
+            // ✅ CORRECTION: Essayer d'abord le stockage externe (pour Jenkins)
+            File externalDir = new File(getExternalFilesDir(null), "QoS_Data");
+            File externalFile = new File(externalDir, fileName);
+
+            if (externalFile.exists()) {
+                // Charger depuis le stockage externe
+                model.loadDataFromFile(externalFile);
+                tvStatus.setText("Prêt (externe) : " + fileName);
+            } else {
+                // Charger depuis les assets (comportement par défaut)
+                model.loadData(this, fileName);
+                tvStatus.setText("Prêt (assets) : " + fileName);
+            }
+
             showScreen(1);
-            tvStatus.setText("Prêt pour l'analyse");
         } catch (Exception e) {
             tvStatus.setText("Erreur : " + e.getMessage());
         }
