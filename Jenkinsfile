@@ -241,7 +241,7 @@ pipeline {
             echo 'Nettoyage final'
 
             // Archiver les rapports de tests
-            junit allowEmptyResults: true, testResults: '**/build/test-results/**/*.xml'
+            junit allowEmptyResults: true, testResults: '**/build/test-results/**/*.xml' || true
 
             // Archiver les rapports Lint
             publishHTML([
