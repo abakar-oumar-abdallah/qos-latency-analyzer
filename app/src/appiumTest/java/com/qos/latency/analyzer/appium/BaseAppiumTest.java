@@ -13,15 +13,8 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Duration;
+import java.util.List;
 
-/**
- * Classe de base pour tests Appium - CONFIGURÉ POUR ÉMULATEUR
- *
- * Configuration:
- * - Device: Android Emulator (emulator-5554)
- * - Appium Server: http://127.0.0.1:4723
- * - Timeout: 30 secondes (adapté pour émulateur)
- */
 public class BaseAppiumTest {
 
     protected AndroidDriver driver;
@@ -30,87 +23,56 @@ public class BaseAppiumTest {
 
     @BeforeEach
     public void setUp() throws MalformedURLException, InterruptedException {
-        System.out.println("=================================================");
-        System.out.println("🚀 CONFIGURATION TESTS APPIUM - ÉMULATEUR");
-        System.out.println("=================================================");
+        System.out.println("========================================");
+        System.out.println("🚀 INITIALISATION DU TEST APPIUM");
+        System.out.println("========================================");
 
         UiAutomator2Options options = new UiAutomator2Options();
 
-        // Configuration de base
         options.setPlatformName("Android");
         options.setAutomationName("UiAutomator2");
-
-        // ✅ CHEMIN APK (adapté pour Jenkins)
         options.setApp("/var/jenkins_home/workspace/QoS-Latency-Analyzer/app/build/outputs/apk/debug/app-debug.apk");
+        options.setDeviceName("SM-S911B");
+        options.setUdid("192.168.1.109:5555");
 
-        // ✅ CONFIGURATION ÉMULATEUR
-        options.setDeviceName("emulator-5554");  // Nom par défaut émulateur
-        options.setUdid("emulator-5554");        // UDID émulateur
-
-        System.out.println("📱 Device: Android Emulator");
-        System.out.println("🔧 UDID: emulator-5554");
-        System.out.println("📦 APK: app-debug.apk");
-
-        // Options de performance pour émulateur
-        options.setNoReset(false);               // Reset app à chaque test
-        options.setFullReset(false);             // Ne pas réinstaller à chaque fois
+        options.setNoReset(false);
+        options.setFullReset(false);
         options.setNewCommandTimeout(Duration.ofSeconds(300));
 
-        // Optimisations pour émulateur (plus rapide)
         options.setCapability("settings[waitForIdleTimeout]", 50);
         options.setCapability("settings[waitForSelectorTimeout]", 500);
-        options.setCapability("skipDeviceInitialization", true);  // Plus rapide
-        options.setCapability("skipServerInstallation", true);    // Plus rapide
 
-        // URL Appium Server
+        // Récupération de l'URL Appium depuis les propriétés système
         String appiumServer = System.getProperty("appium.server", "http://127.0.0.1:4723");
-        System.out.println("🌐 Appium Server: " + appiumServer);
+        System.out.println("📡 Connexion à Appium: " + appiumServer);
 
-        // Connexion au driver
-        System.out.println("⏳ Connexion au driver Appium...");
         driver = new AndroidDriver(new URL(appiumServer), options);
-        System.out.println("✅ Driver connecté avec succès");
 
-        // Configuration des timeouts (adaptés pour émulateur)
-        wait = new WebDriverWait(driver, Duration.ofSeconds(30));      // 30s pour émulateur
-        longWait = new WebDriverWait(driver, Duration.ofSeconds(90));  // 90s pour animations
+        wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+        longWait = new WebDriverWait(driver, Duration.ofSeconds(90));
 
-        System.out.println("⏱️  Timeout standard: 30 secondes");
-        System.out.println("⏱️  Timeout long: 90 secondes");
-
-        // Attente initiale réduite pour émulateur (plus rapide)
+        System.out.println("✅ Driver Appium initialisé");
         Thread.sleep(2000);
-
-        System.out.println("=================================================");
-        System.out.println("✅ CONFIGURATION TERMINÉE - TESTS PRÊTS");
-        System.out.println("=================================================\n");
     }
 
     @AfterEach
     public void tearDown() {
-        System.out.println("\n🧹 Nettoyage session Appium...");
         if (driver != null) {
+            System.out.println("🛑 Fermeture du driver Appium");
             driver.quit();
-            System.out.println("✅ Session fermée");
         }
     }
 
-    /**
-     * Attend et trouve un élément avec scroll automatique si nécessaire
-     */
     protected WebElement waitForElementWithScroll(By locator) {
         try {
             return wait.until(ExpectedConditions.visibilityOfElementLocated(locator));
         } catch (Exception e) {
-            System.out.println("⚠️  Élément non visible, tentative de scroll...");
+            System.out.println("⚠️ Élément non trouvé, tentative de scroll...");
             scrollToFindElement(locator);
             return wait.until(ExpectedConditions.visibilityOfElementLocated(locator));
         }
     }
 
-    /**
-     * Scroll pour trouver un élément
-     */
     protected void scrollToFindElement(By locator) {
         try {
             String uiAutomatorText = locator.toString();
@@ -122,82 +84,77 @@ public class BaseAppiumTest {
                                         ".scrollIntoView(new UiSelector().text(\"" + text + "\"))"
                         )
                 );
-                System.out.println("✅ Scroll réussi vers: " + text);
             }
         } catch (Exception e) {
-            System.out.println("⚠️  Scroll échoué (élément peut-être hors écran)");
+            System.out.println("⚠️ Scroll échoué: " + e.getMessage());
         }
     }
 
-    /**
-     * Attend un élément avec timeout long
-     */
+    protected void waitForFilesLoaded() {
+        System.out.println("⏳ Attente du chargement des fichiers depuis assets...");
+
+        WebDriverWait extraLongWait = new WebDriverWait(driver, Duration.ofSeconds(90));
+        extraLongWait.until(driver -> {
+            try {
+                List<WebElement> files = driver.findElements(
+                        By.xpath("//android.widget.Button[contains(@text, 'test_') or contains(@text, 'data_') or contains(@text, 'new_')]")
+                );
+
+                if (files.size() > 0) {
+                    System.out.println("✅ " + files.size() + " fichier(s) JSON détecté(s)");
+                    for (WebElement file : files) {
+                        System.out.println("   📄 " + file.getText());
+                    }
+                    return true;
+                }
+                return false;
+            } catch (Exception e) {
+                return false;
+            }
+        });
+    }
+
     protected WebElement waitForElement(By locator) {
         return longWait.until(ExpectedConditions.visibilityOfElementLocated(locator));
     }
 
-    /**
-     * Clique sur un élément avec retry automatique
-     */
     protected void waitAndClick(By locator) {
         int attempts = 0;
         while (attempts < 3) {
             try {
                 WebElement element = waitForElementWithScroll(locator);
                 element.click();
-                System.out.println("✅ Clic réussi sur: " + locator);
                 return;
             } catch (Exception e) {
                 attempts++;
-                System.out.println("⚠️  Tentative " + attempts + "/3 échouée");
                 if (attempts >= 3) {
-                    System.err.println("❌ Impossible de cliquer après 3 tentatives");
+                    System.err.println("❌ Échec du clic après 3 tentatives: " + locator);
                     throw e;
                 }
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                }
+                try { Thread.sleep(1000); } catch (InterruptedException ie) {}
             }
         }
     }
 
-    /**
-     * Récupère le texte d'un élément
-     */
     protected String waitAndGetText(By locator) {
         WebElement element = waitForElement(locator);
-        String text = element.getText();
-        System.out.println("📝 Texte récupéré: " + text);
-        return text;
+        return element.getText();
     }
 
-    /**
-     * Vérifie si un élément est affiché (timeout par défaut)
-     */
     protected boolean isElementDisplayed(By locator) {
         return isElementDisplayed(locator, 5);
     }
 
-    /**
-     * Vérifie si un élément est affiché (timeout personnalisé)
-     */
     protected boolean isElementDisplayed(By locator, int timeoutSeconds) {
         try {
             WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
             shortWait.until(ExpectedConditions.visibilityOfElementLocated(locator));
-            System.out.println("✅ Élément visible: " + locator);
             return true;
         } catch (Exception e) {
-            System.out.println("❌ Élément non visible après " + timeoutSeconds + "s: " + locator);
             return false;
         }
     }
 
-    /**
-     * Attend que le texte d'un élément change
-     */
     protected void waitForTextToChange(By locator, String oldText) {
         wait.until(driver -> {
             try {
@@ -207,6 +164,5 @@ public class BaseAppiumTest {
                 return false;
             }
         });
-        System.out.println("✅ Texte changé depuis: " + oldText);
     }
 }

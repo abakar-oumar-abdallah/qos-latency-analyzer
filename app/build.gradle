@@ -41,26 +41,25 @@ android {
 }
 
 // ================================
-// CONFIGURATION DES SOURCES
+// CONFIGURATION DES SOURCES APPIUM
 // ================================
 sourceSets {
-    // Tests Appium (JUnit 5) - SÉPARÉ et INDÉPENDANT
     appiumTest {
         java {
             srcDir 'src/appiumTest/java'
+        }
+        resources {
+            srcDir 'src/appiumTest/resources'
         }
     }
 }
 
 // ================================
-// CONFIGURATIONS (CORRIGÉ - NE PAS HÉRITER)
+// CONFIGURATIONS
 // ================================
 configurations {
-    // ⚠️ CRITIQUE : Ne PAS utiliser extendsFrom avec implementation
-    // Les tests Appium sont des tests EXTERNES qui n'ont pas besoin
-    // des bibliothèques Android (.aar)
-    appiumTestImplementation
-    appiumTestRuntimeOnly
+    appiumTestImplementation.extendsFrom testImplementation
+    appiumTestRuntimeOnly.extendsFrom testRuntimeOnly
 }
 
 dependencies {
@@ -92,12 +91,13 @@ dependencies {
     androidTestImplementation 'androidx.test.uiautomator:uiautomator:2.3.0'
 
     // ================================
-    // TESTS APPIUM (JUnit 5) - INDÉPENDANT
-    // ⚠️ NE PAS utiliser 'implementation' ici, uniquement 'appiumTestImplementation'
+    // TESTS APPIUM (JUnit 5)
     // ================================
     appiumTestImplementation 'io.appium:java-client:9.2.0'
     appiumTestImplementation 'org.seleniumhq.selenium:selenium-java:4.18.1'
     appiumTestImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    appiumTestRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+    appiumTestRuntimeOnly 'org.junit.platform:junit-platform-console:1.10.2'
 }
 
 // ================================
@@ -135,42 +135,96 @@ afterEvaluate {
                 'outputs/code_coverage/debugAndroidTest/connected/**/*.ec'
         ]))
     }
+
+    // ✅ CONFIGURATION DE LA TÂCHE AUTO-GÉNÉRÉE compileAppiumTestJava
+    tasks.named('compileAppiumTestJava').configure {
+        options.encoding = 'UTF-8'
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+
+        doFirst {
+            println "=========================================="
+            println "🔧 COMPILATION DES TESTS APPIUM"
+            println "Source: ${source.asPath}"
+            println "Destination: ${destinationDirectory.get()}"
+            println "=========================================="
+        }
+
+        doLast {
+            println "✅ Compilation Appium terminée"
+            def classFiles = fileTree(destinationDirectory.get()).files
+            println "📦 ${classFiles.size()} classe(s) compilée(s)"
+        }
+    }
 }
 
 // ================================
-// TÂCHE APPIUM TEST
+// TÂCHE EXÉCUTION TESTS APPIUM (VIA JAVAEXEC)
 // ================================
-tasks.register('appiumTest', Test) {
-    description = 'Exécute les tests Appium (nécessite Appium Server)'
+tasks.register('appiumTest', JavaExec) {
+    description = 'Exécute tous les tests Appium E2E sur appareil réel'
     group = 'verification'
 
-    // Configuration des sources
-    testClassesDirs = sourceSets.appiumTest.output.classesDirs
+    dependsOn 'compileAppiumTestJava'
+
+    // Configuration JUnit Platform Console Launcher
+    mainClass = 'org.junit.platform.console.ConsoleLauncher'
+
     classpath = sourceSets.appiumTest.runtimeClasspath
 
-    // Utiliser JUnit Platform (JUnit 5)
-    useJUnitPlatform()
-
-    // Configuration des rapports
-    reports {
-        html.required = true
-        html.outputLocation = file("${buildDir}/reports/tests/appiumTest")
-        junitXml.required = true
-        junitXml.outputLocation = file("${buildDir}/test-results/appiumTest")
-    }
-
-    // Logging détaillé
-    testLogging {
-        events "passed", "skipped", "failed", "standardOut", "standardError"
-        exceptionFormat "full"
-        showStandardStreams = true
-        showCauses = true
-        showStackTraces = true
-    }
-
-    // Timeout
-    timeout = Duration.ofMinutes(20)
+    args = [
+            '--scan-classpath',
+            '--reports-dir', "${buildDir}/test-results/appiumTest",
+            '--details', 'tree'
+    ]
 
     // Variables d'environnement
     systemProperty 'appium.server', System.getProperty('appium.server', 'http://127.0.0.1:4723')
+
+    doFirst {
+        println "=========================================="
+        println "🚀 DÉBUT DES TESTS APPIUM"
+        println "Serveur Appium: ${systemProperties['appium.server']}"
+        println "Nombre de classes: ${sourceSets.appiumTest.output.classesDirs.files.size()}"
+        println "=========================================="
+    }
+
+    doLast {
+        println "=========================================="
+        println "✅ FIN DES TESTS APPIUM"
+        println "Rapports: ${buildDir}/test-results/appiumTest/"
+        println "=========================================="
+    }
+}
+
+// ================================
+// TÂCHE POUR LANCER UN TEST SPÉCIFIQUE
+// ================================
+tasks.register('appiumTestSingle', JavaExec) {
+    description = 'Exécute un test Appium spécifique'
+    group = 'verification'
+
+    dependsOn 'compileAppiumTestJava'
+
+    mainClass = 'org.junit.platform.console.ConsoleLauncher'
+    classpath = sourceSets.appiumTest.runtimeClasspath
+
+    def testClass = project.findProperty('testClass') ?: 'com.qos.latency.analyzer.appium.CompleteFlowAppiumTest'
+    def testMethod = project.findProperty('testMethod') ?: 'testCompleteExecutionFlowWithVisualization'
+
+    args = [
+            '--select-method', "${testClass}#${testMethod}",
+            '--reports-dir', "${buildDir}/test-results/appiumTest",
+            '--details', 'tree'
+    ]
+
+    systemProperty 'appium.server', System.getProperty('appium.server', 'http://127.0.0.1:4723')
+
+    doFirst {
+        println "=========================================="
+        println "🎯 EXÉCUTION D'UN TEST SPÉCIFIQUE"
+        println "Test: ${testClass}#${testMethod}"
+        println "Serveur Appium: ${systemProperties['appium.server']}"
+        println "=========================================="
+    }
 }
