@@ -12,7 +12,9 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class BaseAppiumTest {
     protected AndroidDriver driver;
@@ -74,14 +76,14 @@ public class BaseAppiumTest {
     }
 
     protected void scrollDown() {
-        driver.executeScript("mobile: scrollGesture", Map.of(
-                "left", 100,
-                "top", 100,
-                "width", 200,
-                "height", 200,
-                "direction", "down",
-                "percent", 50.0
-        ));
+        Map<String, Object> params = new HashMap<>();
+        params.put("left", 100);
+        params.put("top", 100);
+        params.put("width", 200);
+        params.put("height", 200);
+        params.put("direction", "down");
+        params.put("percent", 50.0);
+        driver.executeScript("mobile: scrollGesture", params);
     }
 
     // ✅ CORRECTION : XPath en MAJUSCULES
@@ -107,6 +109,7 @@ public class BaseAppiumTest {
         });
     }
 
+    // Méthode avec 2 paramètres (nouvelle signature)
     protected void waitAndClick(By locator, String elementName) {
         int maxAttempts = 3;
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -128,6 +131,11 @@ public class BaseAppiumTest {
         throw new RuntimeException("❌ Échec du clic après " + maxAttempts + " tentatives: " + locator);
     }
 
+    // Méthode avec 1 paramètre (rétrocompatibilité)
+    protected void waitAndClick(By locator) {
+        waitAndClick(locator, locator.toString());
+    }
+
     // ✅ CORRECTION : XPath en MAJUSCULES pour test_data
     protected By getFileButtonLocator(String fileName) {
         String upperFileName = fileName.toUpperCase().replace(".JSON", "");
@@ -142,5 +150,45 @@ public class BaseAppiumTest {
             Thread.currentThread().interrupt();
         }
         System.out.println("⏩ ✓ Phase terminée\n");
+    }
+
+    // ✅ MÉTHODES UTILITAIRES RESTAURÉES
+
+    protected String waitAndGetText(By locator) {
+        WebElement element = wait.until(driver -> {
+            try {
+                WebElement el = driver.findElement(locator);
+                return el.isDisplayed() ? el : null;
+            } catch (Exception e) {
+                return null;
+            }
+        });
+        return element.getText();
+    }
+
+    protected boolean isElementDisplayed(By locator) {
+        try {
+            WebElement element = driver.findElement(locator);
+            return element.isDisplayed();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    protected boolean isElementDisplayed(By locator, int timeoutSeconds) {
+        try {
+            WebDriverWait customWait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
+            WebElement element = customWait.until(driver -> {
+                try {
+                    WebElement el = driver.findElement(locator);
+                    return el.isDisplayed() ? el : null;
+                } catch (Exception e) {
+                    return null;
+                }
+            });
+            return element != null;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }
