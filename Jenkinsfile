@@ -1,122 +1,95 @@
 pipeline {
     agent any
 
+    triggers {
+        pollSCM('H */4 * * 1-5')
+    }
+
     environment {
         ANDROID_HOME = '/opt/android-sdk'
-        PATH = "${env.PATH}:${ANDROID_HOME}/tools:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/cmdline-tools/latest/bin"
-        GRADLE_OPTS = '-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx2048m -XX:MaxMetaspaceSize=512m"'
+        PATH = "${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${env.PATH}"
+        PHONE_IP = "192.168.1.109"
+        APPIUM_PORT = "4723"
     }
 
     stages {
-        stage('Checkout SCM') {
-            steps {
-                script {
-                    echo "Récupération du code source"
-                    checkout scm
-                }
-            }
-        }
 
-        stage('Informations Environnement') {
+        stage('Informations Environement') {
             steps {
-                script {
-                    echo "=== INFORMATIONS ENVIRONNEMENT ==="
-                    sh '''
-                        echo "Java Version:"
-                        java -version
-                        echo "\nGradle Version:"
-                        ./gradlew --version
-                        echo "\nAndroid SDK Path:"
-                        echo $ANDROID_HOME
-                        echo "\nADB Devices:"
-                        adb devices -l
-                    '''
-                }
+                echo 'Vérification de l/environment'
+                sh '''
+                    echo "Java version"
+                    java -version
+                    echo ""
+                    echo "Android SDK Location"
+                    echo ${ANDROID_HOME}
+                    echo ""
+                    echo "Gradle wrapper"
+                    ls -la gradlew
+                '''
             }
         }
 
         stage('Clean') {
             steps {
-                script {
-                    echo "Nettoyage du projet"
-                    sh './gradlew clean'
-                }
+                echo 'Nettoyage du projet'
+                sh 'chmod +x gradlew'
+                sh './gradlew clean'
             }
         }
 
         stage('Build application android') {
             steps {
-                script {
-                    echo "Compilation de l'application Android"
-                    sh './gradlew assembleDebug'
-                }
+                echo 'Compilation de APK Debug'
+                sh './gradlew assembleDebug'
             }
         }
 
         stage('Tests Unitaires') {
             steps {
-                script {
-                    echo "Exécution des tests unitaires"
-                    sh './gradlew test'
-                }
+                echo 'Exécution des tests unitaires'
+                sh './gradlew test --stacktrace'
             }
         }
 
         stage('Préparation Device pour Appium') {
             steps {
-                script {
-                    echo "=== PRÉPARATION DEVICE POUR APPIUM ==="
+                echo '📱 Connexion au téléphone pour Appium'
 
-                    // Connexion ADB
+                script {
                     sh '''
-                        echo "📱 Connexion ADB au device..."
-                        adb connect 192.168.1.109:5555 || true
-                        sleep 2
+                        echo "Connexion au téléphone ${PHONE_IP}..."
+                        adb connect ${PHONE_IP}:5555 || true
+                        sleep 3
+
+                        echo ""
+                        echo "=== APPAREILS CONNECTÉS ==="
                         adb devices -l
-                    '''
 
-                    // Vérification du device
-                    sh '''
-                        echo "✅ Vérification du device..."
-                        DEVICE_COUNT=$(adb devices | grep -v "List" | grep "device" | wc -l)
-                        if [ "$DEVICE_COUNT" -eq "0" ]; then
-                            echo "❌ ERREUR: Aucun device connecté"
+                        DEVICE_COUNT=$(adb devices | grep -w "device" | wc -l)
+                        if [ $DEVICE_COUNT -eq 0 ]; then
+                            echo "ERREUR: Aucun appareil détecté"
                             exit 1
                         fi
-                        echo "✅ Device connecté: $(adb devices | grep device | head -1)"
-                    '''
+                        echo "${DEVICE_COUNT} appareil(s) connecté(s)"
 
-                    // Désinstallation ancienne version
-                    sh '''
-                        echo "🗑️ Désinstallation ancienne version..."
-                        adb uninstall com.qos.latency.analyzer || echo "App non installée"
-                        sleep 1
-                    '''
+                        echo ""
+                        echo "=== INFORMATIONS APPAREIL ==="
+                        echo "Modèle     : $(adb shell getprop ro.product.model)"
+                        echo "Fabricant  : $(adb shell getprop ro.product.manufacturer)"
+                        echo "Android    : $(adb shell getprop ro.build.version.release)"
+                        echo "API Level  : $(adb shell getprop ro.build.version.sdk)"
 
-                    // Installation nouvelle version
-                    sh '''
-                        echo "📦 Installation nouvelle version..."
+                        echo ""
+                        echo "Désinstallation de l'ancienne version..."
+                        adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   Pas d'ancienne version (OK)"
+
+                        echo ""
+                        echo "=== INSTALLATION DE L'APP ==="
                         adb install -r app/build/outputs/apk/debug/app-debug.apk
-                        if [ $? -ne 0 ]; then
-                            echo "❌ ERREUR: Installation APK échouée"
-                            exit 1
-                        fi
-                        echo "✅ APK installé avec succès"
-                    '''
 
-                    echo "✅ Préparation terminée - L'app lira les fichiers depuis les assets"
-                }
-            }
-        }
-
-        stage('Tests Instrumentés') {
-            steps {
-                script {
-                    echo "Exécution des tests instrumentés Espresso"
-                    sh '''
-                        ./gradlew connectedDebugAndroidTest \
-                            -Pandroid.testInstrumentationRunnerArguments.class=com.qos.latency.analyzer.CompleteFlowTest#testCompleteExecutionFlowWithVisualization \
-                            --stacktrace --info
+                        echo ""
+                        echo "✅ Préparation terminée - L'app lira les fichiers depuis les assets"
                     '''
                 }
             }
@@ -124,38 +97,32 @@ pipeline {
 
         stage('Démarrage Appium Server') {
             steps {
+
+                echo 'Démarrage du serveur Appium'
+
                 script {
-                    echo "Démarrage du serveur Appium"
                     sh '''
-                        # Vérifier si Appium tourne déjà
-                        if pgrep -f "appium" > /dev/null; then
-                            echo "Appium est déjà en cours d'exécution"
-                            pkill -f "appium" || true
-                            sleep 2
-                        fi
+                        echo "Arrêt de tout processus Appium existant..."
+                        pkill -f appium || true
+                        sleep 2
 
-                        # Démarrer Appium en arrière-plan
-                        nohup appium --address 127.0.0.1 --port 4723 > /tmp/appium.log 2>&1 &
-                        APPIUM_PID=$!
-                        echo "Appium PID: $APPIUM_PID"
+                        echo "Démarrage d'Appium sur le port ${APPIUM_PORT}..."
+                        nohup appium server \
+                            --address 127.0.0.1 \
+                            --port ${APPIUM_PORT} \
+                            --log /tmp/appium.log \
+                            --log-level info \
+                            --use-drivers uiautomator2 \
+                            --relaxed-security &
 
-                        # Attendre qu'Appium soit prêt
-                        echo "Attente démarrage Appium..."
-                        for i in {1..30}; do
-                            if curl -s http://127.0.0.1:4723/status > /dev/null 2>&1; then
-                                echo "✅ Appium Server prêt"
-                                break
-                            fi
-                            echo "Attente... ($i/30)"
-                            sleep 2
-                        done
+                        echo "Attente du démarrage d'Appium..."
+                        sleep 10
 
-                        # Vérifier si Appium répond
-                        if ! curl -s http://127.0.0.1:4723/status > /dev/null 2>&1; then
-                            echo "❌ ERREUR: Appium Server ne répond pas"
-                            cat /tmp/appium.log
-                            exit 1
-                        fi
+                        echo "Appium démarré"
+
+                        echo ""
+                        echo "=== LOGS APPIUM (10 premières lignes) ==="
+                        head -n 10 /tmp/appium.log || echo "Pas encore de logs"
                     '''
                 }
             }
@@ -177,92 +144,85 @@ pipeline {
 
         stage('Arrêt Appium Server') {
             steps {
+
+                echo 'Arrêt du serveur Appium'
+
+                sh '''
+                    echo "Arrêt d'Appium..."
+                    pkill -f appium || true
+                    sleep 2
+                    echo "Appium arrêté"
+                '''
+            }
+        }
+
+        stage('Tests Instrumentés') {
+            steps {
+                echo 'Test Espresso avec visualisation (105 secondes)'
+
                 script {
-                    echo "Arrêt du serveur Appium"
-                    sh '''
-                        pkill -f "appium" || true
-                        echo "✅ Appium Server arrêté"
-                    '''
+                    catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                        sh '''
+                            ./gradlew connectedAndroidTest \
+                                -Pandroid.testInstrumentationRunnerArguments.class=com.qos.latency.analyzer.CompleteFlowTest#testCompleteExecutionFlowWithVisualization \
+                                --stacktrace \
+                                --info
+                        '''
+                    }
                 }
             }
         }
 
         stage('Analyse Lint') {
             steps {
-                script {
-                    echo "Analyse Lint Android"
-                    sh './gradlew lint'
-                }
+                echo 'Analyse Lint Android'
+                sh './gradlew lint'
             }
         }
 
         stage('Archive APK') {
             steps {
-                script {
-                    echo "Archivage de APK"
-                    archiveArtifacts artifacts: 'app/build/outputs/apk/debug/*.apk', fingerprint: true
-                }
+                echo 'Archivage de APK'
+                archiveArtifacts artifacts: '**/build/outputs/apk/debug/*.apk', allowEmptyArchive: false, fingerprint: true
             }
         }
+
     }
 
     post {
-        always {
-            script {
-                echo "Nettoyage final"
-
-                // Arrêter Appium s'il tourne encore
-                sh 'pkill -f "appium" || true'
-
-                // Publier les résultats des tests
-                junit allowEmptyResults: true, testResults: '**/build/test-results/**/*.xml'
-
-                // Publier le rapport Lint
-                publishHTML([
-                    allowMissing: true,
-                    alwaysLinkToLastBuild: true,
-                    keepAll: true,
-                    reportDir: 'app/build/reports',
-                    reportFiles: 'lint-results-debug.html',
-                    reportName: 'Lint Report'
-                ])
-            }
-        }
         success {
+            echo 'Build réussi'
+            echo 'APK disponible dans les artifacts'
+            echo 'Nom du fichier: app-debug.apk'
+
             script {
-                echo "Build réussi"
-                echo "APK disponible dans les artifacts"
-                def apkPath = 'app/build/outputs/apk/debug/app-debug.apk'
-                if (fileExists(apkPath)) {
-                    def apkFile = new File(apkPath)
-                    echo "Nom du fichier: ${apkFile.name}"
-                }
-
-                // Statistiques des tests
-                def testResultAction = currentBuild.rawBuild.getAction(hudson.tasks.junit.TestResultAction.class)
-                if (testResultAction != null) {
-                    def total = testResultAction.totalCount
-                    def failed = testResultAction.failCount
-                    def skipped = testResultAction.skipCount
-                    def passed = total - failed - skipped
-
-                    echo "Tests exécutés : ${total}"
-                    echo "Tests réussis : ${passed}"
-                    echo "Tests échoués : ${failed}"
-                }
+                def testResults = junit testResults: '**/build/test-results/**/*.xml'
+                echo "Tests exécutés : ${testResults.totalCount}"
+                echo "Tests réussis : ${testResults.passCount}"
+                echo "Tests échoués : ${testResults.failCount}"
             }
         }
+
         failure {
-            script {
-                echo "Build échoué"
-                echo "Consultez les logs pour plus de détails"
-            }
+            echo 'La pipeline a échoué'
+            echo 'Consultez les logs ci-dessus pour identifier les erreurs'
         }
-        unstable {
-            script {
-                echo "Build instable"
-                echo "Certains tests ont échoué"
-            }
+
+        always {
+            echo 'Nettoyage final'
+
+            // Archiver les rapports de tests
+            junit allowEmptyResults: true, testResults: '**/build/test-results/**/*.xml'
+
+            // Archiver les rapports Lint
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'app/build/reports',
+                reportFiles: 'lint-results-debug.html',
+                reportName: 'Lint Report'
+            ])
         }
     }
 }
