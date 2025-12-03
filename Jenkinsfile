@@ -234,7 +234,7 @@ pipeline {
 
         failure {
             echo 'La pipeline a échoué'
-            echo 'Consultez les logs ci-dessus pour identifier les erreurs'
+            echo 'Consultez les logs ci-dessus pour identier les erreurs qui ont fait échoué la pipeline'
         }
 
         always {
