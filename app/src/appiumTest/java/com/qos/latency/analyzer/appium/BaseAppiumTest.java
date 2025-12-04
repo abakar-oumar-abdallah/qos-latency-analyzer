@@ -115,30 +115,45 @@ public abstract class BaseAppiumTest {
     }
 
     /**
-     * Attendre l’apparition des fichiers JSON
+     * Attendre l’apparition des fichiers JSON (insensible à la casse)
+     * et loguer tous les éléments visibles en cas d'échec.
      */
     private void waitForJsonFiles() {
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(60));
 
-        wait.until(driver -> {
-            try {
-                List<WebElement> files = driver.findElements(
-                        By.xpath("//android.widget.Button[contains(@text, 'data_') or contains(@text, 'test_') or contains(@text, 'new_')]")
-                );
+        try {
+            wait.until(driver -> {
+                try {
+                    List<WebElement> files = driver.findElements(
+                            By.xpath("//android.widget.Button[" +
+                                    "contains(translate(@text,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'data_') " +
+                                    "or contains(translate(@text,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'test_') " +
+                                    "or contains(translate(@text,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'new_')" +
+                                    "]")
+                    );
 
-                if (!files.isEmpty()) {
-                    System.out.println("✅ Fichiers chargés : " + files.size() + " fichier(s) trouvé(s)");
-                    for (WebElement file : files) {
-                        System.out.println("  - " + file.getText());
+                    if (!files.isEmpty()) {
+                        System.out.println("✅ Fichiers chargés : " + files.size() + " fichier(s) trouvé(s)");
+                        for (WebElement file : files) {
+                            String text = file.getText();
+                            System.out.println("  - " + (text != null ? text : "null"));
+                        }
+                        return true;
                     }
-                    return true;
+                    return false;
+
+                } catch (Exception ex) {
+                    return false;
                 }
-                return false;
-            } catch (Exception ex) {
-                return false;
-            }
-        });
+            });
+        } catch (Exception e) {
+            System.out.println("❌ Timeout lors de la recherche des fichiers JSON");
+            printAllVisibleElements();       // Log tous les éléments visibles
+            takeScreenshot("waitForJsonFiles_error"); // Capture d’écran automatique
+            throw new RuntimeException("Fichiers JSON introuvables", e);
+        }
     }
+
 
     @After
     public void tearDown() {
