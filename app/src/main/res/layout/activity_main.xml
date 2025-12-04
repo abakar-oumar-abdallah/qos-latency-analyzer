@@ -1,14 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    Layout principal de l'application d'analyse de latence réseau.
-
-    Structure à deux écrans :
-    1. Écran de sélection de fichier (screen_file_selection)
-    2. Écran d'animation du graphique (screen_animation)
-
-    Utilise FrameLayout pour superposer les écrans et les afficher/masquer
-    selon les besoins de navigation.
--->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -16,7 +6,6 @@
     android:padding="16dp"
     android:background="#FFFFFF">
 
-    <!-- En-tête de l'application -->
     <TextView
         android:id="@+id/tv_title"
         android:layout_width="match_parent"
@@ -28,13 +17,12 @@
         android:textSize="20sp"
         android:textStyle="bold" />
 
-    <!-- Container principal pour les écrans multiples -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <!-- ÉCRAN 0 : SÉLECTION DE FICHIER JSON -->
+        <!-- Écran sélection fichiers -->
         <LinearLayout
             android:id="@+id/screen_file_selection"
             android:layout_width="match_parent"
@@ -43,7 +31,6 @@
             android:visibility="visible"
             android:background="#F8F9FA">
 
-            <!-- En-tête de sélection avec informations fichier -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -63,7 +50,6 @@
                     android:gravity="center"
                     android:layout_marginBottom="10dp" />
 
-                <!-- Affichage du fichier actuellement sélectionné -->
                 <TextView
                     android:id="@+id/tv_selected_file"
                     android:layout_width="match_parent"
@@ -75,7 +61,6 @@
 
             </LinearLayout>
 
-            <!-- Instructions pour l'utilisateur -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -87,34 +72,28 @@
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp" />
 
-            <!-- Zone scrollable contenant la liste des fichiers -->
             <ScrollView
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
                 android:fillViewport="true">
 
-                <!-- Container où les boutons de fichiers seront ajoutés dynamiquement -->
                 <LinearLayout
                     android:id="@+id/file_selection_container"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:padding="16dp">
-
-                    <!-- Les boutons de sélection seront créés par MainActivity.loadAvailableFiles() -->
-
+                    <!-- Les boutons seront ajoutés dynamiquement avec texte exact -->
                 </LinearLayout>
 
             </ScrollView>
 
-            <!-- Zone des actions utilisateur -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:padding="16dp">
 
-                <!-- Bouton pour recharger la liste des fichiers -->
                 <Button
                     android:id="@+id/btn_refresh_files"
                     android:layout_width="match_parent"
@@ -128,7 +107,7 @@
 
         </LinearLayout>
 
-        <!-- ÉCRAN 1 : ANIMATION CHRONOLOGIQUE -->
+        <!-- Écran animation -->
         <LinearLayout
             android:id="@+id/screen_animation"
             android:layout_width="match_parent"
@@ -136,7 +115,6 @@
             android:orientation="vertical"
             android:visibility="gone">
 
-            <!-- Zone d'informations en temps réel -->
             <TextView
                 android:id="@+id/tv_status"
                 android:layout_width="match_parent"
@@ -147,7 +125,6 @@
                 android:textColor="#424242"
                 android:layout_marginBottom="8dp" />
 
-            <!-- Informations détaillées sur les données affichées -->
             <TextView
                 android:id="@+id/tv_series_info"
                 android:layout_width="match_parent"
@@ -158,7 +135,6 @@
                 android:textColor="#666666"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Label du graphique -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -169,7 +145,6 @@
                 android:textColor="#616161"
                 android:layout_marginBottom="8dp" />
 
-            <!-- Vue personnalisée pour le graphique interactif -->
             <com.qos.latency.analyzer.view.ChartView
                 android:id="@+id/chart_view"
                 android:layout_width="match_parent"
@@ -178,14 +153,12 @@
                 android:background="#FAFAFA"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Barre d'actions avec les boutons de contrôle -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:layout_marginBottom="8dp">
 
-                <!-- Bouton pour revenir à l'écran de sélection -->
                 <Button
                     android:id="@+id/btn_change_file"
                     android:layout_width="0dp"
@@ -197,7 +170,6 @@
                     android:textColor="#FFFFFF"
                     android:layout_marginEnd="8dp" />
 
-                <!-- Bouton principal de lancement de l'animation -->
                 <Button
                     android:id="@+id/btn_launch"
                     android:layout_width="0dp"
