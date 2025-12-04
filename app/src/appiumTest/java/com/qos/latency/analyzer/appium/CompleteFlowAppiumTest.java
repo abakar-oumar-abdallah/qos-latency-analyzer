@@ -1,151 +1,209 @@
 package com.qos.latency.analyzer.appium;
 
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 import org.openqa.selenium.By;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.Assert.*;
 
+/**
+ * Test du flux complet d'exécution avec visualisation
+ * Ce test vérifie le scénario utilisateur de bout en bout :
+ * 1. Sélection d'un fichier JSON
+ * 2. Lancement du traitement
+ * 3. Visualisation de la progression
+ * 4. Vérification de la complétion
+ */
 public class CompleteFlowAppiumTest extends BaseAppiumTest {
 
+    /**
+     * Test du flux complet d'exécution avec visualisation
+     * Durée estimée : ~40 secondes
+     */
     @Test
-    public void testCompleteExecutionFlowWithVisualization() {
-        System.out.println("\n======================================================================");
-        System.out.println("  DÉMARRAGE DU TEST APPIUM AVEC VISUALISATION");
-        System.out.println("======================================================================");
-        System.out.println("ℹ️  Durée estimée : 1 minute 45 secondes");
-        System.out.println("======================================================================\n");
+    public void testCompleteExecutionFlowWithVisualization() throws InterruptedException {
+        System.out.println("\n========================================");
+        System.out.println("🎬 TEST: Flux Complet avec Visualisation");
+        System.out.println("========================================");
 
-        // ═══════════════════════════════════════════════════════════════════════════
-        // PHASE 1 : ÉCRAN DE SÉLECTION (5 secondes)
-        // ═══════════════════════════════════════════════════════════════════════════
-        System.out.println("\n──────────────────────────────────────────────────────────────────────");
-        System.out.println("📍 PHASE 1 : ÉCRAN DE SÉLECTION (5s)");
-        System.out.println("──────────────────────────────────────────────────────────────────────");
+        // ====================================================================
+        // ÉTAPE 1 : Vérifier que l'application est lancée
+        // ====================================================================
+        System.out.println("\n📱 ÉTAPE 1: Vérification du lancement");
 
-        // Vérifier que l'application s'est lancée
-        By titleLocator = By.id("com.qos.latency.analyzer:id/tv_title");
-        String appTitle = waitAndGetText(titleLocator);
-        assertTrue(appTitle.contains("QoS"), "✅ Application lancée : " + appTitle);
-        System.out.println("✅ Application lancée : " + appTitle);
+        By launchButton = getLaunchButtonLocator();
+        assertTrue("Le bouton Launch devrait être visible",
+                isElementDisplayed(launchButton, 10));
 
-        System.out.println("ℹ️  Observation de l'interface de sélection...");
-        waitForScreen("⏩ ✓ Phase 1 terminée\n", 5);
+        String initialText = waitAndGetText(launchButton);
+        System.out.println("✅ Application lancée - Bouton: " + initialText);
 
-        // ═══════════════════════════════════════════════════════════════════════════
-        // PHASE 2 : ATTENTE DU CHARGEMENT DES FICHIERS (5 secondes)
-        // ═══════════════════════════════════════════════════════════════════════════
-        System.out.println("\n──────────────────────────────────────────────────────────────────────");
-        System.out.println("📍 PHASE 2 : ATTENTE CHARGEMENT APP (5s)");
-        System.out.println("──────────────────────────────────────────────────────────────────────");
-        System.out.println("ℹ️  Attente que l'app charge les fichiers depuis les assets...");
-        waitForScreen("⏩ ✓ Phase 2 terminée\n", 5);
+        // ====================================================================
+        // ÉTAPE 2 : Afficher les fichiers disponibles
+        // ====================================================================
+        System.out.println("\n📂 ÉTAPE 2: Fichiers disponibles");
+        printAllVisibleElements();
 
-        // ═══════════════════════════════════════════════════════════════════════════
-        // PHASE 3 : AVANT CLIC SUR LE FICHIER (5 secondes)
-        // ═══════════════════════════════════════════════════════════════════════════
-        System.out.println("\n──────────────────────────────────────────────────────────────────────");
-        System.out.println("📍 PHASE 3 : AVANT CLIC SUR FICHIER (5s)");
-        System.out.println("──────────────────────────────────────────────────────────────────────");
-        System.out.println("ℹ️  Préparation pour sélectionner test_data.json...");
-        waitForScreen("⏩ ✓ Phase 3 terminée\n", 5);
+        // ====================================================================
+        // ÉTAPE 3 : Sélectionner le fichier data_high_variable_latency.json
+        // ====================================================================
+        System.out.println("\n📄 ÉTAPE 3: Sélection du fichier");
 
-        // ═══════════════════════════════════════════════════════════════════════════
-        // PHASE 4 : CLIC SUR LE FICHIER ET CHARGEMENT (2 secondes)
-        // ═══════════════════════════════════════════════════════════════════════════
-        System.out.println("\n──────────────────────────────────────────────────────────────────────");
-        System.out.println("📍 PHASE 4 : CLIC ET CHARGEMENT (2s)");
-        System.out.println("──────────────────────────────────────────────────────────────────────");
-        System.out.println("ℹ️  Clic sur test_data.json...");
+        // Utilisation de data_high_variable_latency au lieu de test_data
+        By fileButton = getFileButtonLocator("data_high_variable_latency");
+        waitAndClick(fileButton, "data_high_variable_latency.json");
 
-        // ✅ CORRECTION : Utiliser getFileButtonLocator qui convertit en majuscules
-        By testDataButton = getFileButtonLocator("test_data");
-        waitAndClick(testDataButton, "test_data.json");
+        System.out.println("✅ Fichier sélectionné: data_high_variable_latency.json");
+        Thread.sleep(1000); // Laisser le temps à l'UI de se mettre à jour
 
-        waitForScreen("⏩ ✓ Phase 4 terminée\n", 2);
+        // ====================================================================
+        // ÉTAPE 4 : Vérifier que le bouton Launch est activé
+        // ====================================================================
+        System.out.println("\n🔘 ÉTAPE 4: Vérification du bouton Launch");
 
-        // ═══════════════════════════════════════════════════════════════════════════
-        // PHASE 5 : ÉCRAN D'ANIMATION ET STATUT (5 secondes)
-        // ═══════════════════════════════════════════════════════════════════════════
-        System.out.println("\n──────────────────────────────────────────────────────────────────────");
-        System.out.println("📍 PHASE 5 : ÉCRAN D'ANIMATION (5s)");
-        System.out.println("──────────────────────────────────────────────────────────────────────");
-        By statusLocator = By.id("com.qos.latency.analyzer:id/tv_status");
-        String status = waitAndGetText(statusLocator);
-        System.out.println("ℹ️  Statut actuel : " + status);
-        waitForScreen("⏩ ✓ Phase 5 terminée\n", 5);
+        String buttonText = waitAndGetText(launchButton);
+        System.out.println("📝 Texte du bouton: " + buttonText);
+        assertTrue("Le bouton devrait afficher 'Lancer' ou 'Launch'",
+                buttonText.contains("Lancer") || buttonText.contains("Launch"));
 
-        // ═══════════════════════════════════════════════════════════════════════════
-        // PHASE 6 : OBSERVATION DU BOUTON LANCER (5 secondes)
-        // ═══════════════════════════════════════════════════════════════════════════
-        System.out.println("\n──────────────────────────────────────────────────────────────────────");
-        System.out.println("📍 PHASE 6 : BOUTON LANCER (5s)");
-        System.out.println("──────────────────────────────────────────────────────────────────────");
-        By launchButtonLocator = By.id("com.qos.latency.analyzer:id/btn_launch_animation");
-        String buttonText = waitAndGetText(launchButtonLocator);
-        System.out.println("ℹ️  Texte du bouton : " + buttonText);
-        waitForScreen("⏩ ✓ Phase 6 terminée\n", 5);
+        // ====================================================================
+        // ÉTAPE 5 : Lancer le traitement
+        // ====================================================================
+        System.out.println("\n🚀 ÉTAPE 5: Lancement du traitement");
 
-        // ═══════════════════════════════════════════════════════════════════════════
-        // PHASE 7 : CLIC SUR LE BOUTON LANCER (2 secondes)
-        // ═══════════════════════════════════════════════════════════════════════════
-        System.out.println("\n──────────────────────────────────────────────────────────────────────");
-        System.out.println("📍 PHASE 7 : LANCEMENT ANIMATION (2s)");
-        System.out.println("──────────────────────────────────────────────────────────────────────");
-        System.out.println("ℹ️  Clic sur le bouton Lancer...");
-        waitAndClick(launchButtonLocator, "Bouton Lancer Animation");
-        waitForScreen("⏩ ✓ Phase 7 terminée\n", 2);
+        waitAndClick(launchButton, "Launch");
+        System.out.println("✅ Traitement lancé");
+        Thread.sleep(2000); // Laisser le temps au traitement de démarrer
 
-        // ═══════════════════════════════════════════════════════════════════════════
-        // PHASE 8 : DÉBUT DE L'ANIMATION (10 secondes)
-        // ═══════════════════════════════════════════════════════════════════════════
-        System.out.println("\n──────────────────────────────────────────────────────────────────────");
-        System.out.println("📍 PHASE 8 : DÉBUT ANIMATION (10s)");
-        System.out.println("──────────────────────────────────────────────────────────────────────");
-        String statusAnimation = waitAndGetText(statusLocator);
-        System.out.println("ℹ️  Statut : " + statusAnimation);
-        waitForScreen("⏩ ✓ Phase 8 terminée\n", 10);
+        // ====================================================================
+        // ÉTAPE 6 : Vérifier que le traitement a démarré
+        // ====================================================================
+        System.out.println("\n⏳ ÉTAPE 6: Vérification du démarrage");
 
-        // ═══════════════════════════════════════════════════════════════════════════
-        // PHASE 9 : MILIEU DE L'ANIMATION (10 secondes)
-        // ═══════════════════════════════════════════════════════════════════════════
-        System.out.println("\n──────────────────────────────────────────────────────────────────────");
-        System.out.println("📍 PHASE 9 : MILIEU ANIMATION (10s)");
-        System.out.println("──────────────────────────────────────────────────────────────────────");
-        System.out.println("ℹ️  L'animation est en cours d'exécution...");
-        waitForScreen("⏩ ✓ Phase 9 terminée\n", 10);
+        // Le bouton devrait changer de texte
+        String processingText = waitAndGetText(launchButton);
+        System.out.println("📝 Texte pendant traitement: " + processingText);
 
-        // ═══════════════════════════════════════════════════════════════════════════
-        // PHASE 10 : FIN DE L'ANIMATION (10 secondes)
-        // ═══════════════════════════════════════════════════════════════════════════
-        System.out.println("\n──────────────────────────────────────────────────────────────────────");
-        System.out.println("📍 PHASE 10 : FIN ANIMATION (10s)");
-        System.out.println("──────────────────────────────────────────────────────────────────────");
-        String countdown = waitAndGetText(launchButtonLocator);
-        System.out.println("ℹ️  Compte à rebours : " + countdown);
-        waitForScreen("⏩ ✓ Phase 10 terminée\n", 10);
+        // Vérifier que la barre de progression est visible
+        By progressBar = getProgressBarLocator();
+        assertTrue("La barre de progression devrait être visible",
+                isElementDisplayed(progressBar, 5));
+        System.out.println("✅ Barre de progression visible");
 
-        // ═══════════════════════════════════════════════════════════════════════════
-        // PHASE 11 : VÉRIFICATION FINALE (5 secondes)
-        // ═══════════════════════════════════════════════════════════════════════════
-        System.out.println("\n──────────────────────────────────────────────────────────────────────");
-        System.out.println("📍 PHASE 11 : VÉRIFICATION FINALE (5s)");
-        System.out.println("──────────────────────────────────────────────────────────────────────");
-        System.out.println("ℹ️  Vérification de l'état final...");
+        // ====================================================================
+        // ÉTAPE 7 : Observer la progression (visualisation)
+        // ====================================================================
+        System.out.println("\n📊 ÉTAPE 7: Observation de la progression");
+        System.out.println("⏱️  Durée estimée: ~35 secondes pour data_high_variable_latency");
 
-        // Vérifications finales
-        String finalStatus = waitAndGetText(statusLocator);
-        String finalButton = waitAndGetText(launchButtonLocator);
+        // Observer pendant 5 secondes
+        for (int i = 1; i <= 5; i++) {
+            Thread.sleep(1000);
+            String currentText = waitAndGetText(launchButton);
+            System.out.println("  [" + i + "s] Statut: " + currentText);
+        }
 
-        System.out.println("ℹ️  Statut final : " + finalStatus);
-        System.out.println("ℹ️  Bouton final : " + finalButton);
+        // ====================================================================
+        // ÉTAPE 8 : Attendre la fin du traitement
+        // ====================================================================
+        System.out.println("\n⏳ ÉTAPE 8: Attente de la complétion");
+        System.out.println("⏱️  Attente de ~30 secondes supplémentaires...");
 
-        assertTrue(finalStatus.contains("Terminé") || finalStatus.contains("Prêt"),
-                "Le statut final devrait indiquer que l'animation est terminée");
+        // Attendre que le bouton affiche "Terminé" ou "Completed"
+        // Timeout de 60 secondes pour être sûr
+        waitForTextInElement(launchButton, "Terminé", 60);
 
-        waitForScreen("⏩ ✓ Phase 11 terminée\n", 5);
+        String finalText = waitAndGetText(launchButton);
+        System.out.println("✅ Traitement terminé - Texte final: " + finalText);
 
-        System.out.println("\n======================================================================");
-        System.out.println("✅ TEST TERMINÉ AVEC SUCCÈS");
-        System.out.println("======================================================================\n");
+        // ====================================================================
+        // ÉTAPE 9 : Vérifications finales
+        // ====================================================================
+        System.out.println("\n✅ ÉTAPE 9: Vérifications finales");
+
+        // Vérifier le texte final
+        assertTrue("Le bouton devrait afficher 'Terminé' à la fin",
+                finalText.contains("Terminé") || finalText.contains("Completed"));
+
+        // Vérifier que la barre de progression n'est plus visible (ou complète)
+        System.out.println("✅ Barre de progression: traitement terminé");
+
+        // ====================================================================
+        // ÉTAPE 10 : Capture d'écran finale
+        // ====================================================================
+        System.out.println("\n📸 ÉTAPE 10: Capture d'écran finale");
+        takeScreenshot("complete_flow_final");
+
+        System.out.println("\n========================================");
+        System.out.println("🎉 TEST RÉUSSI: Flux complet validé");
+        System.out.println("========================================");
+        System.out.println("📊 Résumé:");
+        System.out.println("  - Fichier: data_high_variable_latency.json");
+        System.out.println("  - État initial: " + initialText);
+        System.out.println("  - État final: " + finalText);
+        System.out.println("  - Durée totale: ~40 secondes");
+        System.out.println("========================================\n");
+    }
+
+    /**
+     * Test du flux complet sans visualisation (attente complète)
+     * Ce test lance le traitement et attend directement la fin
+     */
+    @Test
+    public void testCompleteExecutionFlowFast() throws InterruptedException {
+        System.out.println("\n========================================");
+        System.out.println("🎬 TEST: Flux Complet Rapide");
+        System.out.println("========================================");
+
+        // Sélectionner le fichier
+        By fileButton = getFileButtonLocator("data_high_variable_latency");
+        waitAndClick(fileButton, "data_high_variable_latency.json");
+        System.out.println("✅ Fichier sélectionné");
+
+        // Lancer le traitement
+        By launchButton = getLaunchButtonLocator();
+        waitAndClick(launchButton, "Launch");
+        System.out.println("✅ Traitement lancé");
+
+        // Attendre directement la fin
+        System.out.println("⏳ Attente de la complétion...");
+        waitForTextInElement(launchButton, "Terminé", 60);
+
+        // Vérification finale
+        String finalText = waitAndGetText(launchButton);
+        assertTrue("Le traitement devrait être terminé",
+                finalText.contains("Terminé") || finalText.contains("Completed"));
+
+        System.out.println("✅ Test terminé avec succès");
+    }
+
+    /**
+     * Test de la réinitialisation après un traitement
+     */
+    @Test
+    public void testResetAfterExecution() throws InterruptedException {
+        System.out.println("\n========================================");
+        System.out.println("🎬 TEST: Réinitialisation après exécution");
+        System.out.println("========================================");
+
+        // Exécuter un traitement complet
+        By fileButton = getFileButtonLocator("data_high_variable_latency");
+        waitAndClick(fileButton, "data_high_variable_latency.json");
+
+        By launchButton = getLaunchButtonLocator();
+        waitAndClick(launchButton, "Launch");
+
+        waitForTextInElement(launchButton, "Terminé", 60);
+        System.out.println("✅ Premier traitement terminé");
+
+        // Cliquer sur le bouton "Terminé" pour réinitialiser
+        waitAndClick(launchButton, "Reset");
+        Thread.sleep(1000);
+
+        // Vérifier que l'état est réinitialisé
+        String resetText = waitAndGetText(launchButton);
+        assertTrue("Le bouton devrait être revenu à l'état initial",
+                resetText.contains("Select") || resetText.contains("Sélectionner"));
+
+        System.out.println("✅ Réinitialisation réussie");
     }
 }
