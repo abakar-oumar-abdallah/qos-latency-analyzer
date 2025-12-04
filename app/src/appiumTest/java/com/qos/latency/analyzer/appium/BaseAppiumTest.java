@@ -76,6 +76,14 @@ public abstract class BaseAppiumTest {
      */
     protected void waitForFilesLoaded() {
         System.out.println("⏳ Attente du chargement des fichiers...");
+
+        // FIX : Attendre que l'écran principal soit chargé avant de chercher les fichiers
+        try {
+            driver.findElement(By.id(APP_PACKAGE + ":id/main_layout"));
+        } catch (Exception e) {
+            System.out.println("⚠️ Le layout principal n'a pas pu être confirmé, poursuite de l'attente des fichiers.");
+        }
+
         longWait.until(driver -> {
             try {
                 // Chercher les fichiers (en minuscules, comme ils apparaissent réellement)
@@ -111,40 +119,24 @@ public abstract class BaseAppiumTest {
 
     /**
      * Retourne le locator pour un bouton de fichier donné
-     * CORRECTION: Suppression du .toUpperCase() pour correspondre au texte réel
      */
     protected By getFileButtonLocator(String fileName) {
-        // Nettoyer le nom du fichier (enlever l'extension .json)
         String cleanFileName = fileName.replace(".json", "").replace(".JSON", "");
-
-        // Créer le XPath avec le nom exact (sans conversion en majuscules)
         return By.xpath("//android.widget.Button[contains(@text, '" + cleanFileName + "')]");
     }
 
-    /**
-     * Retourne le locator pour le bouton Launch/Lancer
-     */
     protected By getLaunchButtonLocator() {
         return By.id(APP_PACKAGE + ":id/btn_launch");
     }
 
-    /**
-     * Retourne le locator pour le TextView du status
-     */
     protected By getStatusTextLocator() {
         return By.id(APP_PACKAGE + ":id/tv_status");
     }
 
-    /**
-     * Retourne le locator pour la ProgressBar
-     */
     protected By getProgressBarLocator() {
         return By.id(APP_PACKAGE + ":id/progressBar");
     }
 
-    /**
-     * Attend et clique sur un élément
-     */
     protected void waitAndClick(By locator, String elementName) {
         System.out.println("🔍 Recherche de l'élément: " + elementName);
         WebElement element = mediumWait.until(ExpectedConditions.elementToBeClickable(locator));
@@ -153,17 +145,11 @@ public abstract class BaseAppiumTest {
         System.out.println("👆 Clic effectué sur: " + elementName);
     }
 
-    /**
-     * Attend et récupère le texte d'un élément
-     */
     protected String waitAndGetText(By locator) {
         WebElement element = mediumWait.until(ExpectedConditions.presenceOfElementLocated(locator));
         return element.getText();
     }
 
-    /**
-     * Vérifie si un élément est affiché
-     */
     protected boolean isElementDisplayed(By locator, int timeoutSeconds) {
         try {
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
@@ -174,9 +160,6 @@ public abstract class BaseAppiumTest {
         }
     }
 
-    /**
-     * Attend qu'un élément contienne un texte spécifique
-     */
     protected void waitForTextInElement(By locator, String expectedText, int timeoutSeconds) {
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
         wait.until(driver -> {
@@ -191,14 +174,9 @@ public abstract class BaseAppiumTest {
         });
     }
 
-    /**
-     * Obtient le chemin de l'APK
-     * CORRECTION: Gère le cas où user.dir se termine par /app
-     */
     private String getApkPath() {
         String projectDir = System.getProperty("user.dir");
 
-        // Si on est dans le sous-répertoire /app, remonter d'un niveau
         if (projectDir.endsWith("/app")) {
             projectDir = projectDir.substring(0, projectDir.length() - 4);
         }
@@ -214,9 +192,6 @@ public abstract class BaseAppiumTest {
         return apkPath;
     }
 
-    /**
-     * Affiche tous les éléments visibles (pour debug)
-     */
     protected void printAllVisibleElements() {
         System.out.println("\n📋 Éléments visibles:");
         List<WebElement> elements = driver.findElements(By.xpath("//*[@text]"));
@@ -227,30 +202,23 @@ public abstract class BaseAppiumTest {
                     System.out.println("  - " + element.getTagName() + ": " + text);
                 }
             } catch (Exception e) {
-                // Ignorer les éléments qui causent des erreurs
             }
         }
     }
 
-    /**
-     * Prend une capture d'écran (pour debug)
-     */
     protected void takeScreenshot(String fileName) {
         try {
             File screenshot = driver.getScreenshotAs(org.openqa.selenium.OutputType.FILE);
             String projectDir = System.getProperty("user.dir");
 
-            // Gérer le cas où projectDir se termine par /app
             if (projectDir.endsWith("/app")) {
                 projectDir = projectDir.substring(0, projectDir.length() - 4);
             }
 
             String destPath = projectDir + "/app/build/screenshots/" + fileName + ".png";
 
-            // Créer le répertoire si nécessaire
             new File(projectDir + "/app/build/screenshots/").mkdirs();
 
-            // Copier le fichier
             java.nio.file.Files.copy(
                     screenshot.toPath(),
                     new File(destPath).toPath(),
