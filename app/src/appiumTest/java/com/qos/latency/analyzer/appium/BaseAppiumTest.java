@@ -40,11 +40,9 @@ public abstract class BaseAppiumTest {
         System.out.println("🚀 Initialisation du test Appium");
         System.out.println("========================================");
 
-        // Obtenir le chemin de l'APK
         String apkPath = getApkPath();
         System.out.println("📦 APK: " + apkPath);
 
-        // Configuration des options UiAutomator2
         UiAutomator2Options options = new UiAutomator2Options();
         options.setDeviceName("Android Device");
         options.setPlatformName("Android");
@@ -56,18 +54,15 @@ public abstract class BaseAppiumTest {
         options.setAutoGrantPermissions(true);
         options.setNewCommandTimeout(Duration.ofSeconds(300));
 
-        // Création du driver
         System.out.println("🔌 Connexion au serveur Appium: " + APPIUM_SERVER_URL);
         driver = new AndroidDriver(new URL(APPIUM_SERVER_URL), options);
 
-        // Configuration des timeouts
         shortWait = new WebDriverWait(driver, Duration.ofSeconds(5));
         mediumWait = new WebDriverWait(driver, Duration.ofSeconds(15));
         longWait = new WebDriverWait(driver, Duration.ofSeconds(30));
 
         System.out.println("✅ Driver Appium initialisé avec succès");
 
-        // Attendre que l'application soit complètement chargée
         waitForFilesLoaded();
     }
 
@@ -76,7 +71,6 @@ public abstract class BaseAppiumTest {
      */
     protected void waitForFilesLoaded() {
         System.out.println("⏳ Attente du chargement des fichiers...");
-
         try {
             handlePermissionsPopup();
             waitForMainLayout();
@@ -95,11 +89,9 @@ public abstract class BaseAppiumTest {
     private void handlePermissionsPopup() {
         try {
             Thread.sleep(2000);
-
             List<WebElement> allowButtons = driver.findElements(
                     By.xpath("//*[contains(@text, 'Autoriser') or contains(@text, 'Allow')]")
             );
-
             if (!allowButtons.isEmpty()) {
                 System.out.println("🔔 Popup permissions détecté → clic sur 'Autoriser'");
                 allowButtons.get(0).click();
@@ -142,7 +134,6 @@ public abstract class BaseAppiumTest {
                     return true;
                 }
                 return false;
-
             } catch (Exception ex) {
                 return false;
             }
@@ -161,38 +152,23 @@ public abstract class BaseAppiumTest {
         }
     }
 
-    /**
-     * Retourne le locator pour un bouton de fichier donné
-     */
     protected By getFileButtonLocator(String fileName) {
         String cleanFileName = fileName.replace(".json", "").replace(".JSON", "");
         return By.xpath("//android.widget.Button[contains(@text, '" + cleanFileName + "')]");
     }
 
-    /**
-     * Retourne le locator pour le bouton Launch/Lancer
-     */
     protected By getLaunchButtonLocator() {
         return By.id(APP_PACKAGE + ":id/btn_launch");
     }
 
-    /**
-     * Retourne le locator pour le TextView du status
-     */
     protected By getStatusTextLocator() {
         return By.id(APP_PACKAGE + ":id/tv_status");
     }
 
-    /**
-     * Retourne le locator pour la ProgressBar
-     */
     protected By getProgressBarLocator() {
         return By.id(APP_PACKAGE + ":id/progressBar");
     }
 
-    /**
-     * Attend et clique sur un élément
-     */
     protected void waitAndClick(By locator, String elementName) {
         System.out.println("🔍 Recherche de l'élément: " + elementName);
         WebElement element = mediumWait.until(ExpectedConditions.elementToBeClickable(locator));
@@ -201,17 +177,11 @@ public abstract class BaseAppiumTest {
         System.out.println("👆 Clic effectué sur: " + elementName);
     }
 
-    /**
-     * Attend et récupère le texte d'un élément
-     */
     protected String waitAndGetText(By locator) {
         WebElement element = mediumWait.until(ExpectedConditions.presenceOfElementLocated(locator));
         return element.getText();
     }
 
-    /**
-     * Vérifie si un élément est affiché
-     */
     protected boolean isElementDisplayed(By locator, int timeoutSeconds) {
         try {
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
@@ -222,9 +192,6 @@ public abstract class BaseAppiumTest {
         }
     }
 
-    /**
-     * Attend qu'un élément contienne un texte spécifique
-     */
     protected void waitForTextInElement(By locator, String expectedText, int timeoutSeconds) {
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
         wait.until(driver -> {
@@ -239,9 +206,6 @@ public abstract class BaseAppiumTest {
         });
     }
 
-    /**
-     * Obtient le chemin de l'APK
-     */
     private String getApkPath() {
         String projectDir = System.getProperty("user.dir");
 
@@ -250,19 +214,13 @@ public abstract class BaseAppiumTest {
         }
 
         String apkPath = projectDir + "/app/build/outputs/apk/debug/app-debug.apk";
-
         File apkFile = new File(apkPath);
         if (!apkFile.exists()) {
-            fail("❌ APK non trouvé: " + apkPath + "\n" +
-                    "💡 Exécutez d'abord: ./gradlew assembleDebug");
+            fail("❌ APK non trouvé: " + apkPath + "\n💡 Exécutez d'abord: ./gradlew assembleDebug");
         }
-
         return apkPath;
     }
 
-    /**
-     * Affiche tous les éléments visibles
-     */
     protected void printAllVisibleElements() {
         System.out.println("\n📋 Éléments visibles:");
         List<WebElement> elements = driver.findElements(By.xpath("//*[@text]"));
@@ -276,9 +234,6 @@ public abstract class BaseAppiumTest {
         }
     }
 
-    /**
-     * Prend une capture d'écran (pour debug)
-     */
     protected void takeScreenshot(String fileName) {
         try {
             File screenshot = driver.getScreenshotAs(org.openqa.selenium.OutputType.FILE);
@@ -289,7 +244,6 @@ public abstract class BaseAppiumTest {
             }
 
             String destPath = projectDir + "/app/build/screenshots/" + fileName + ".png";
-
             new File(projectDir + "/app/build/screenshots/").mkdirs();
 
             java.nio.file.Files.copy(
