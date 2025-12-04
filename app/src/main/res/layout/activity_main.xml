@@ -6,6 +6,7 @@
     android:padding="16dp"
     android:background="#FFFFFF">
 
+    <!-- En-tête de l'application -->
     <TextView
         android:id="@+id/tv_title"
         android:layout_width="match_parent"
@@ -17,12 +18,13 @@
         android:textSize="20sp"
         android:textStyle="bold" />
 
+    <!-- Container principal pour les écrans multiples -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <!-- Écran sélection fichiers -->
+        <!-- ÉCRAN 0 : SÉLECTION DE FICHIER JSON -->
         <LinearLayout
             android:id="@+id/screen_file_selection"
             android:layout_width="match_parent"
@@ -57,8 +59,8 @@
                     android:text="Choisissez un fichier JSON"
                     android:textSize="14sp"
                     android:textColor="#666666"
-                    android:gravity="center" />
-
+                    android:gravity="center"
+                    android:contentDescription="Fichier sélectionné" />
             </LinearLayout>
 
             <TextView
@@ -83,10 +85,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
-                    <!-- Les boutons seront ajoutés dynamiquement avec texte exact -->
-                </LinearLayout>
-
+                    android:padding="16dp" />
             </ScrollView>
 
             <LinearLayout
@@ -102,12 +101,11 @@
                     android:textSize="14sp"
                     android:backgroundTint="#607D8B"
                     android:textColor="#FFFFFF" />
-
             </LinearLayout>
 
         </LinearLayout>
 
-        <!-- Écran animation -->
+        <!-- ÉCRAN 1 : ANIMATION CHRONOLOGIQUE -->
         <LinearLayout
             android:id="@+id/screen_animation"
             android:layout_width="match_parent"
@@ -179,12 +177,11 @@
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:backgroundTint="#4CAF50"
-                    android:textColor="#FFFFFF" />
-
+                    android:textColor="#FFFFFF"
+                    android:contentDescription="Bouton lancer l'analyse" />
             </LinearLayout>
 
         </LinearLayout>
 
     </FrameLayout>
-
 </LinearLayout>
