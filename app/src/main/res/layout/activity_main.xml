@@ -1,187 +1,94 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp"
-    android:background="#FFFFFF">
+    android:padding="16dp">
 
-    <!-- En-tête de l'application -->
-    <TextView
-        android:id="@+id/tv_title"
+    <!-- Écran de sélection de fichiers -->
+    <LinearLayout
+        android:id="@+id/screen_file_selection"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="20dp"
-        android:gravity="center"
-        android:text="QoS Latence"
-        android:textColor="#212121"
-        android:textSize="20sp"
-        android:textStyle="bold" />
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:contentDescription="Écran de sélection de fichiers">
 
-    <!-- Container principal pour les écrans multiples -->
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
+        <TextView
+            android:id="@+id/tv_selected_file"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Aucun fichier sélectionné"
+            android:textSize="18sp"
+            android:contentDescription="Nom du fichier sélectionné"/>
 
-        <!-- ÉCRAN 0 : SÉLECTION DE FICHIER JSON -->
-        <LinearLayout
-            android:id="@+id/screen_file_selection"
+        <Button
+            android:id="@+id/btn_refresh_files"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Rafraîchir"
+            android:contentDescription="Bouton Rafraîchir fichiers"/>
+
+        <ScrollView
+            android:id="@+id/file_selection_scroll"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:visibility="visible"
-            android:background="#F8F9FA">
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:contentDescription="Liste de fichiers disponibles">
 
             <LinearLayout
+                android:id="@+id/file_selection_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="#FFFFFF"
-                android:padding="20dp"
-                android:elevation="2dp"
-                android:layout_marginBottom="20dp">
+                android:contentDescription="Conteneur de boutons de fichiers"/>
+        </ScrollView>
+    </LinearLayout>
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Sélection du fichier"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="#212121"
-                    android:gravity="center"
-                    android:layout_marginBottom="10dp" />
+    <!-- Écran d'animation du graphique -->
+    <LinearLayout
+        android:id="@+id/screen_animation"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:contentDescription="Écran d'animation">
 
-                <TextView
-                    android:id="@+id/tv_selected_file"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Choisissez un fichier JSON"
-                    android:textSize="14sp"
-                    android:textColor="#666666"
-                    android:gravity="center"
-                    android:contentDescription="Fichier sélectionné" />
-            </LinearLayout>
+        <TextView
+            android:id="@+id/tv_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Status"
+            android:textSize="16sp"
+            android:contentDescription="Statut de l'analyse"/>
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Fichiers disponibles"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="#424242"
-                android:layout_marginBottom="20dp"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp" />
+        <TextView
+            android:id="@+id/tv_series_info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Infos séries"
+            android:textSize="16sp"
+            android:contentDescription="Informations sur les séries affichées"/>
 
-            <ScrollView
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:fillViewport="true">
-
-                <LinearLayout
-                    android:id="@+id/file_selection_container"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp" />
-            </ScrollView>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:padding="16dp">
-
-                <Button
-                    android:id="@+id/btn_refresh_files"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Actualiser"
-                    android:textSize="14sp"
-                    android:backgroundTint="#607D8B"
-                    android:textColor="#FFFFFF" />
-            </LinearLayout>
-
-        </LinearLayout>
-
-        <!-- ÉCRAN 1 : ANIMATION CHRONOLOGIQUE -->
-        <LinearLayout
-            android:id="@+id/screen_animation"
+        <com.qos.latency.analyzer.view.ChartView
+            android:id="@+id/chart_view"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:visibility="gone">
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:contentDescription="Graphique de latence"/>
 
-            <TextView
-                android:id="@+id/tv_status"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Prêt à démarrer"
-                android:textSize="16sp"
-                android:gravity="center"
-                android:textColor="#424242"
-                android:layout_marginBottom="8dp" />
+        <Button
+            android:id="@+id/btn_launch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Lancer"
+            android:contentDescription="Bouton Lancer animation"/>
 
-            <TextView
-                android:id="@+id/tv_series_info"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Affichage : Temps (s) vs RTT (ms)"
-                android:textSize="14sp"
-                android:gravity="center"
-                android:textColor="#666666"
-                android:layout_marginBottom="16dp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Graphique"
-                android:gravity="center"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="#616161"
-                android:layout_marginBottom="8dp" />
-
-            <com.qos.latency.analyzer.view.ChartView
-                android:id="@+id/chart_view"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:background="#FAFAFA"
-                android:layout_marginBottom="16dp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="8dp">
-
-                <Button
-                    android:id="@+id/btn_change_file"
-                    android:layout_width="0dp"
-                    android:layout_height="50dp"
-                    android:layout_weight="1"
-                    android:text="Changer fichier"
-                    android:textSize="14sp"
-                    android:backgroundTint="#607D8B"
-                    android:textColor="#FFFFFF"
-                    android:layout_marginEnd="8dp" />
-
-                <Button
-                    android:id="@+id/btn_launch"
-                    android:layout_width="0dp"
-                    android:layout_height="50dp"
-                    android:layout_weight="1"
-                    android:text="Lancer l'analyse"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:backgroundTint="#4CAF50"
-                    android:textColor="#FFFFFF"
-                    android:contentDescription="Bouton lancer l'analyse" />
-            </LinearLayout>
-
-        </LinearLayout>
-
-    </FrameLayout>
+        <Button
+            android:id="@+id/btn_change_file"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Changer de fichier"
+            android:contentDescription="Bouton Changer fichier"/>
+    </LinearLayout>
 </LinearLayout>
