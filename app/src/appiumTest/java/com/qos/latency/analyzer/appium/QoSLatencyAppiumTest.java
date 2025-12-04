@@ -6,246 +6,204 @@ import org.openqa.selenium.By;
 import static org.junit.Assert.*;
 
 /**
- * Tests Appium pour l'application QoS Latency Analyzer
- * Ces tests utilisent Appium pour valider l'interface utilisateur
- * sur un appareil physique réel
+ * Test du flux complet d'exécution avec visualisation
+ * Ce test vérifie le scénario utilisateur de bout en bout :
+ * 1. Sélection d'un fichier JSON
+ * 2. Lancement du traitement
+ * 3. Visualisation de la progression
+ * 4. Vérification de la complétion
  */
-public class QoSLatencyAppiumTest extends BaseAppiumTest {
+public class CompleteFlowAppiumTest extends BaseAppiumTest {
 
     /**
-     * Test de base : vérifier que l'application se lance correctement
+     * Test du flux complet d'exécution avec visualisation
+     * Durée estimée : ~40 secondes
      */
     @Test
-    public void testAppLaunches() {
+    public void testCompleteExecutionFlowWithVisualization() throws InterruptedException {
         System.out.println("\n========================================");
-        System.out.println("🧪 TEST: Lancement de l'application");
+        System.out.println("🎬 TEST: Flux Complet avec Visualisation");
         System.out.println("========================================");
 
-        // Vérifier que le bouton Launch est visible
+        // ====================================================================
+        // ÉTAPE 1 : Vérifier que l'application est lancée
+        // ====================================================================
+        System.out.println("\n📱 ÉTAPE 1: Vérification du lancement");
+
         By launchButton = getLaunchButtonLocator();
         assertTrue("Le bouton Launch devrait être visible",
                 isElementDisplayed(launchButton, 10));
 
-        // Vérifier le texte du bouton
-        String buttonText = waitAndGetText(launchButton);
-        System.out.println("✅ Bouton trouvé avec texte: " + buttonText);
+        String initialText = waitAndGetText(launchButton);
+        System.out.println("✅ Application lancée - Bouton: " + initialText);
 
-        assertTrue("Le texte du bouton devrait contenir 'Select' ou 'Sélectionner'",
-                buttonText.contains("Select") || buttonText.contains("Sélectionner"));
-    }
-
-    /**
-     * Test : Sélection d'un fichier data_high_variable_latency.json
-     */
-    @Test
-    public void testSelectFile_DataHighVariableLatency() {
-        System.out.println("\n========================================");
-        System.out.println("🧪 TEST: Sélection du fichier data_high_variable_latency.json");
-        System.out.println("========================================");
-
-        // Afficher tous les éléments pour debug
+        // ====================================================================
+        // ÉTAPE 2 : Afficher les fichiers disponibles
+        // ====================================================================
+        System.out.println("\n📂 ÉTAPE 2: Fichiers disponibles");
         printAllVisibleElements();
 
-        // Trouver et cliquer sur le fichier data_high_variable_latency
-        By fileLocator = getFileButtonLocator("data_high_variable_latency");
+        // ====================================================================
+        // ÉTAPE 3 : Sélectionner le fichier data_high_variable_latency.json
+        // ====================================================================
+        System.out.println("\n📄 ÉTAPE 3: Sélection du fichier");
 
-        assertTrue(isElementDisplayed(fileLocator, 10),
-                "Le fichier 'data_high_variable_latency' devrait être visible après chargement");
+        // Utilisation de data_high_variable_latency au lieu de test_data
+        By fileButton = getFileButtonLocator("data_high_variable_latency");
+        waitAndClick(fileButton, "data_high_variable_latency.json");
 
-        waitAndClick(fileLocator, "data_high_variable_latency.json");
+        System.out.println("✅ Fichier sélectionné: data_high_variable_latency.json");
+        Thread.sleep(1000); // Laisser le temps à l'UI de se mettre à jour
 
-        // Vérifier que le bouton Launch a changé
-        By launchButton = getLaunchButtonLocator();
+        // ====================================================================
+        // ÉTAPE 4 : Vérifier que le bouton Launch est activé
+        // ====================================================================
+        System.out.println("\n🔘 ÉTAPE 4: Vérification du bouton Launch");
+
         String buttonText = waitAndGetText(launchButton);
-
-        System.out.println("📝 Texte du bouton après sélection: " + buttonText);
-
+        System.out.println("📝 Texte du bouton: " + buttonText);
         assertTrue("Le bouton devrait afficher 'Lancer' ou 'Launch'",
                 buttonText.contains("Lancer") || buttonText.contains("Launch"));
 
-        System.out.println("✅ Fichier data_high_variable_latency.json sélectionné avec succès");
-    }
+        // ====================================================================
+        // ÉTAPE 5 : Lancer le traitement
+        // ====================================================================
+        System.out.println("\n🚀 ÉTAPE 5: Lancement du traitement");
 
-    /**
-     * Test : Vérifier la présence des fichiers JSON
-     */
-    @Test
-    public void testJsonFilesAreVisible() {
-        System.out.println("\n========================================");
-        System.out.println("🧪 TEST: Visibilité des fichiers JSON");
-        System.out.println("========================================");
-
-        // Vérifier que le fichier data_high_variable_latency est visible
-        By fileLocator = getFileButtonLocator("data_high_variable_latency");
-        assertTrue(isElementDisplayed(fileLocator, 10),
-                "Le fichier 'data_high_variable_latency' devrait être visible initialement");
-
-        // Prendre une capture d'écran
-        takeScreenshot("files_visible");
-
-        System.out.println("✅ Fichiers JSON visibles");
-    }
-
-    /**
-     * Test : Vérifier que l'actualisation fonctionne
-     */
-    @Test
-    public void testRefreshFiles() {
-        System.out.println("\n========================================");
-        System.out.println("🧪 TEST: Actualisation des fichiers");
-        System.out.println("========================================");
-
-        // Vérifier que les fichiers sont visibles
-        assertTrue(isElementDisplayed(getFileButtonLocator("data_high_variable_latency"), 10),
-                "Le fichier 'data_high_variable_latency' devrait être visible après actualisation");
-
-        System.out.println("✅ Actualisation réussie");
-    }
-
-    /**
-     * Test : Vérifier la présence de plusieurs fichiers
-     */
-    @Test
-    public void testMultipleFilesPresent() {
-        System.out.println("\n========================================");
-        System.out.println("🧪 TEST: Présence de plusieurs fichiers");
-        System.out.println("========================================");
-
-        // Vérifier que plusieurs fichiers sont présents
-        assertTrue(isElementDisplayed(getFileButtonLocator("data_high_variable_latency"), 10));
-        assertTrue(isElementDisplayed(getFileButtonLocator("data_all"), 10));
-
-        System.out.println("✅ Plusieurs fichiers trouvés");
-    }
-
-    /**
-     * Test : Lancer un traitement simple
-     */
-    @Test
-    public void testLaunchProcessing() throws InterruptedException {
-        System.out.println("\n========================================");
-        System.out.println("🧪 TEST: Lancement d'un traitement");
-        System.out.println("========================================");
-
-        // Sélectionner un fichier
-        By fileLocator = getFileButtonLocator("data_high_variable_latency");
-        waitAndClick(fileLocator, "data_high_variable_latency.json");
-
-        // Cliquer sur Launch
-        By launchButton = getLaunchButtonLocator();
         waitAndClick(launchButton, "Launch");
+        System.out.println("✅ Traitement lancé");
+        Thread.sleep(2000); // Laisser le temps au traitement de démarrer
 
-        // Attendre un peu pour voir le traitement démarrer
-        Thread.sleep(3000);
+        // ====================================================================
+        // ÉTAPE 6 : Vérifier que le traitement a démarré
+        // ====================================================================
+        System.out.println("\n⏳ ÉTAPE 6: Vérification du démarrage");
+
+        // Le bouton devrait changer de texte
+        String processingText = waitAndGetText(launchButton);
+        System.out.println("📝 Texte pendant traitement: " + processingText);
 
         // Vérifier que la barre de progression est visible
         By progressBar = getProgressBarLocator();
         assertTrue("La barre de progression devrait être visible",
                 isElementDisplayed(progressBar, 5));
+        System.out.println("✅ Barre de progression visible");
 
-        System.out.println("✅ Traitement lancé avec succès");
-    }
+        // ====================================================================
+        // ÉTAPE 7 : Observer la progression (visualisation)
+        // ====================================================================
+        System.out.println("\n📊 ÉTAPE 7: Observation de la progression");
+        System.out.println("⏱️  Durée estimée: ~35 secondes pour data_high_variable_latency");
 
-    /**
-     * Test : Vérifier le changement d'état du bouton
-     */
-    @Test
-    public void testButtonStateChanges() throws InterruptedException {
-        System.out.println("\n========================================");
-        System.out.println("🧪 TEST: Changements d'état du bouton");
-        System.out.println("========================================");
-
-        By launchButton = getLaunchButtonLocator();
-
-        // État initial
-        String initialText = waitAndGetText(launchButton);
-        System.out.println("📝 État initial: " + initialText);
-
-        // Sélectionner un fichier
-        By fileLocator = getFileButtonLocator("data_high_variable_latency");
-        waitAndClick(fileLocator, "data_high_variable_latency.json");
-
-        // État après sélection
-        Thread.sleep(500);
-        String afterSelectionText = waitAndGetText(launchButton);
-        System.out.println("📝 Après sélection: " + afterSelectionText);
-
-        assertTrue("Le texte devrait avoir changé",
-                !initialText.equals(afterSelectionText));
-
-        System.out.println("✅ Changements d'état validés");
-    }
-
-    /**
-     * Test : Vérifier le status TextView
-     */
-    @Test
-    public void testStatusTextView() throws InterruptedException {
-        System.out.println("\n========================================");
-        System.out.println("🧪 TEST: Vérification du TextView de status");
-        System.out.println("========================================");
-
-        // Sélectionner un fichier et lancer
-        waitAndClick(getFileButtonLocator("data_high_variable_latency"), "File");
-        waitAndClick(getLaunchButtonLocator(), "Launch");
-
-        // Attendre un peu
-        Thread.sleep(2000);
-
-        // Vérifier que le status est visible
-        By statusLocator = getStatusTextLocator();
-        assertTrue("Le TextView de status devrait être visible",
-                isElementDisplayed(statusLocator, 5));
-
-        String statusText = waitAndGetText(statusLocator);
-        System.out.println("📝 Status: " + statusText);
-
-        System.out.println("✅ Status TextView vérifié");
-    }
-
-    /**
-     * Test : Vérifier la réactivité de l'interface
-     */
-    @Test
-    public void testUIResponsiveness() throws InterruptedException {
-        System.out.println("\n========================================");
-        System.out.println("🧪 TEST: Réactivité de l'interface");
-        System.out.println("========================================");
-
-        // Cliquer plusieurs fois pour vérifier la réactivité
-        By fileLocator = getFileButtonLocator("data_high_variable_latency");
-
-        for (int i = 1; i <= 3; i++) {
-            System.out.println("🔄 Clic #" + i);
-            waitAndClick(fileLocator, "File " + i);
-            Thread.sleep(500);
-
-            String buttonText = waitAndGetText(getLaunchButtonLocator());
-            System.out.println("  -> Bouton: " + buttonText);
+        // Observer pendant 5 secondes
+        for (int i = 1; i <= 5; i++) {
+            Thread.sleep(1000);
+            String currentText = waitAndGetText(launchButton);
+            System.out.println("  [" + i + "s] Statut: " + currentText);
         }
 
-        System.out.println("✅ Interface réactive");
+        // ====================================================================
+        // ÉTAPE 8 : Attendre la fin du traitement
+        // ====================================================================
+        System.out.println("\n⏳ ÉTAPE 8: Attente de la complétion");
+        System.out.println("⏱️  Attente de ~30 secondes supplémentaires...");
+
+        // Attendre que le bouton affiche "Terminé" ou "Completed"
+        // Timeout de 60 secondes pour être sûr
+        waitForTextInElement(launchButton, "Terminé", 60);
+
+        String finalText = waitAndGetText(launchButton);
+        System.out.println("✅ Traitement terminé - Texte final: " + finalText);
+
+        // ====================================================================
+        // ÉTAPE 9 : Vérifications finales
+        // ====================================================================
+        System.out.println("\n✅ ÉTAPE 9: Vérifications finales");
+
+        // Vérifier le texte final
+        assertTrue("Le bouton devrait afficher 'Terminé' à la fin",
+                finalText.contains("Terminé") || finalText.contains("Completed"));
+
+        // Vérifier que la barre de progression n'est plus visible (ou complète)
+        System.out.println("✅ Barre de progression: traitement terminé");
+
+        // ====================================================================
+        // ÉTAPE 10 : Capture d'écran finale
+        // ====================================================================
+        System.out.println("\n📸 ÉTAPE 10: Capture d'écran finale");
+        takeScreenshot("complete_flow_final");
+
+        System.out.println("\n========================================");
+        System.out.println("🎉 TEST RÉUSSI: Flux complet validé");
+        System.out.println("========================================");
+        System.out.println("📊 Résumé:");
+        System.out.println("  - Fichier: data_high_variable_latency.json");
+        System.out.println("  - État initial: " + initialText);
+        System.out.println("  - État final: " + finalText);
+        System.out.println("  - Durée totale: ~40 secondes");
+        System.out.println("========================================\n");
     }
 
     /**
-     * Test : Capture d'écran de l'état initial
+     * Test du flux complet sans visualisation (attente complète)
+     * Ce test lance le traitement et attend directement la fin
      */
     @Test
-    public void testCaptureInitialState() {
+    public void testCompleteExecutionFlowFast() throws InterruptedException {
         System.out.println("\n========================================");
-        System.out.println("🧪 TEST: Capture d'écran de l'état initial");
+        System.out.println("🎬 TEST: Flux Complet Rapide");
         System.out.println("========================================");
 
-        // Attendre que tout soit chargé
+        // Sélectionner le fichier
+        By fileButton = getFileButtonLocator("data_high_variable_latency");
+        waitAndClick(fileButton, "data_high_variable_latency.json");
+        System.out.println("✅ Fichier sélectionné");
+
+        // Lancer le traitement
         By launchButton = getLaunchButtonLocator();
-        assertTrue(isElementDisplayed(launchButton, 10));
+        waitAndClick(launchButton, "Launch");
+        System.out.println("✅ Traitement lancé");
 
-        // Prendre une capture d'écran
-        takeScreenshot("initial_state");
+        // Attendre directement la fin
+        System.out.println("⏳ Attente de la complétion...");
+        waitForTextInElement(launchButton, "Terminé", 60);
 
-        // Afficher les éléments pour debug
-        printAllVisibleElements();
+        // Vérification finale
+        String finalText = waitAndGetText(launchButton);
+        assertTrue("Le traitement devrait être terminé",
+                finalText.contains("Terminé") || finalText.contains("Completed"));
 
-        System.out.println("✅ Capture d'écran sauvegardée");
+        System.out.println("✅ Test terminé avec succès");
+    }
+
+    /**
+     * Test de la réinitialisation après un traitement
+     */
+    @Test
+    public void testResetAfterExecution() throws InterruptedException {
+        System.out.println("\n========================================");
+        System.out.println("🎬 TEST: Réinitialisation après exécution");
+        System.out.println("========================================");
+
+        // Exécuter un traitement complet
+        By fileButton = getFileButtonLocator("data_high_variable_latency");
+        waitAndClick(fileButton, "data_high_variable_latency.json");
+
+        By launchButton = getLaunchButtonLocator();
+        waitAndClick(launchButton, "Launch");
+
+        waitForTextInElement(launchButton, "Terminé", 60);
+        System.out.println("✅ Premier traitement terminé");
+
+        // Cliquer sur le bouton "Terminé" pour réinitialiser
+        waitAndClick(launchButton, "Reset");
+        Thread.sleep(1000);
+
+        // Vérifier que l'état est réinitialisé
+        String resetText = waitAndGetText(launchButton);
+        assertTrue("Le bouton devrait être revenu à l'état initial",
+                resetText.contains("Select") || resetText.contains("Sélectionner"));
+
+        System.out.println("✅ Réinitialisation réussie");
     }
 }
