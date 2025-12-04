@@ -16,22 +16,29 @@ public class QoSLatencyAppiumTest extends BaseAppiumTest {
      * Test de base : vérifier que l'application se lance correctement
      */
     @Test
-    public void testAppLaunches() {
+    public void testAppLaunches() throws InterruptedException {
         System.out.println("\n========================================");
         System.out.println("🧪 TEST: Lancement de l'application");
         System.out.println("========================================");
 
-        // Vérifier que le bouton Launch est visible
+        // Attendre qu'un fichier JSON soit visible
+        By firstFile = getFileButtonLocator("data_all"); // Choisir un fichier existant
+        assertTrue("Le fichier 'data_all' devrait être visible",
+                isElementDisplayed(firstFile, 10));
+
+        // Sélectionner ce fichier pour activer l'écran d'animation
+        waitAndClick(firstFile, "data_all.json");
+
+        // Vérifier que le bouton Launch est maintenant visible
         By launchButton = getLaunchButtonLocator();
-        assertTrue("Le bouton Launch devrait être visible",
+        assertTrue("Le bouton Launch devrait être visible après sélection",
                 isElementDisplayed(launchButton, 10));
 
         // Vérifier le texte du bouton
         String buttonText = waitAndGetText(launchButton);
         System.out.println("✅ Bouton trouvé avec texte: " + buttonText);
-
-        assertTrue("Le texte du bouton devrait contenir 'Select' ou 'Sélectionner'",
-                buttonText.contains("Select") || buttonText.contains("Sélectionner"));
+        assertTrue("Le texte du bouton devrait contenir 'Lancer' ou 'Launch'",
+                buttonText.contains("Lancer") || buttonText.contains("Launch"));
     }
 
     /**
@@ -43,18 +50,14 @@ public class QoSLatencyAppiumTest extends BaseAppiumTest {
         System.out.println("🧪 TEST: Sélection du fichier data_high_variable_latency.json");
         System.out.println("========================================");
 
-        // Afficher tous les éléments pour debug
         printAllVisibleElements();
 
-        // Trouver et cliquer sur le fichier data_high_variable_latency
         By fileLocator = getFileButtonLocator("data_high_variable_latency");
-
         assertTrue("Le fichier 'data_high_variable_latency' devrait être visible après chargement",
                 isElementDisplayed(fileLocator, 10));
 
         waitAndClick(fileLocator, "data_high_variable_latency.json");
 
-        // Vérifier que le bouton Launch a changé
         By launchButton = getLaunchButtonLocator();
         String buttonText = waitAndGetText(launchButton);
 
@@ -75,12 +78,10 @@ public class QoSLatencyAppiumTest extends BaseAppiumTest {
         System.out.println("🧪 TEST: Visibilité des fichiers JSON");
         System.out.println("========================================");
 
-        // Vérifier que le fichier data_high_variable_latency est visible
         By fileLocator = getFileButtonLocator("data_high_variable_latency");
         assertTrue("Le fichier 'data_high_variable_latency' devrait être visible initialement",
                 isElementDisplayed(fileLocator, 10));
 
-        // Prendre une capture d'écran
         takeScreenshot("files_visible");
 
         System.out.println("✅ Fichiers JSON visibles");
@@ -95,7 +96,6 @@ public class QoSLatencyAppiumTest extends BaseAppiumTest {
         System.out.println("🧪 TEST: Actualisation des fichiers");
         System.out.println("========================================");
 
-        // Vérifier que les fichiers sont visibles
         assertTrue("Le fichier 'data_high_variable_latency' devrait être visible après actualisation",
                 isElementDisplayed(getFileButtonLocator("data_high_variable_latency"), 10));
 
@@ -111,7 +111,6 @@ public class QoSLatencyAppiumTest extends BaseAppiumTest {
         System.out.println("🧪 TEST: Présence de plusieurs fichiers");
         System.out.println("========================================");
 
-        // Vérifier que plusieurs fichiers sont présents
         assertTrue("Le fichier 'data_high_variable_latency' devrait être visible",
                 isElementDisplayed(getFileButtonLocator("data_high_variable_latency"), 10));
         assertTrue("Le fichier 'data_all' devrait être visible",
@@ -129,18 +128,14 @@ public class QoSLatencyAppiumTest extends BaseAppiumTest {
         System.out.println("🧪 TEST: Lancement d'un traitement");
         System.out.println("========================================");
 
-        // Sélectionner un fichier
         By fileLocator = getFileButtonLocator("data_high_variable_latency");
         waitAndClick(fileLocator, "data_high_variable_latency.json");
 
-        // Cliquer sur Launch
         By launchButton = getLaunchButtonLocator();
         waitAndClick(launchButton, "Launch");
 
-        // Attendre un peu pour voir le traitement démarrer
         Thread.sleep(3000);
 
-        // Vérifier que la barre de progression est visible
         By progressBar = getProgressBarLocator();
         assertTrue("La barre de progression devrait être visible",
                 isElementDisplayed(progressBar, 5));
@@ -158,16 +153,12 @@ public class QoSLatencyAppiumTest extends BaseAppiumTest {
         System.out.println("========================================");
 
         By launchButton = getLaunchButtonLocator();
-
-        // État initial
         String initialText = waitAndGetText(launchButton);
         System.out.println("📝 État initial: " + initialText);
 
-        // Sélectionner un fichier
         By fileLocator = getFileButtonLocator("data_high_variable_latency");
         waitAndClick(fileLocator, "data_high_variable_latency.json");
 
-        // État après sélection
         Thread.sleep(500);
         String afterSelectionText = waitAndGetText(launchButton);
         System.out.println("📝 Après sélection: " + afterSelectionText);
@@ -187,14 +178,11 @@ public class QoSLatencyAppiumTest extends BaseAppiumTest {
         System.out.println("🧪 TEST: Vérification du TextView de status");
         System.out.println("========================================");
 
-        // Sélectionner un fichier et lancer
         waitAndClick(getFileButtonLocator("data_high_variable_latency"), "File");
         waitAndClick(getLaunchButtonLocator(), "Launch");
 
-        // Attendre un peu
         Thread.sleep(2000);
 
-        // Vérifier que le status est visible
         By statusLocator = getStatusTextLocator();
         assertTrue("Le TextView de status devrait être visible",
                 isElementDisplayed(statusLocator, 5));
@@ -214,7 +202,6 @@ public class QoSLatencyAppiumTest extends BaseAppiumTest {
         System.out.println("🧪 TEST: Réactivité de l'interface");
         System.out.println("========================================");
 
-        // Cliquer plusieurs fois pour vérifier la réactivité
         By fileLocator = getFileButtonLocator("data_high_variable_latency");
 
         for (int i = 1; i <= 3; i++) {
@@ -238,15 +225,17 @@ public class QoSLatencyAppiumTest extends BaseAppiumTest {
         System.out.println("🧪 TEST: Capture d'écran de l'état initial");
         System.out.println("========================================");
 
-        // Attendre que tout soit chargé
+        By firstFile = getFileButtonLocator("data_all");
+        assertTrue("Le fichier 'data_all' devrait être visible",
+                isElementDisplayed(firstFile, 10));
+
+        waitAndClick(firstFile, "data_all.json");
+
         By launchButton = getLaunchButtonLocator();
         assertTrue("Le bouton Launch devrait être visible",
                 isElementDisplayed(launchButton, 10));
 
-        // Prendre une capture d'écran
         takeScreenshot("initial_state");
-
-        // Afficher les éléments pour debug
         printAllVisibleElements();
 
         System.out.println("✅ Capture d'écran sauvegardée");
