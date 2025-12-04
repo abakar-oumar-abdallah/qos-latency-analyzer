@@ -16,7 +16,7 @@ pipeline {
 
         stage('Informations Environement') {
             steps {
-                echo 'Vérification de l/environment'
+                echo 'Vérification de l\'environnement'
                 sh '''
                     echo "Java version"
                     java -version
@@ -40,7 +40,7 @@ pipeline {
 
         stage('Build application android') {
             steps {
-                echo 'Compilation de APK Debug'
+                echo 'Compilation de l\'APK Debug'
                 sh './gradlew assembleDebug'
             }
         }
@@ -52,13 +52,15 @@ pipeline {
             }
         }
 
-        stage('Préparation Device pour Appium') {
+        stage('Préparation Device pour Tests') {
             steps {
-                echo '📱 Connexion au téléphone pour Appium'
+                echo '📱 Connexion et préparation du téléphone'
 
                 script {
                     sh '''
-                        echo "Connexion au téléphone ${PHONE_IP}..."
+                        echo "=========================================="
+                        echo "CONNEXION AU TÉLÉPHONE"
+                        echo "=========================================="
                         adb connect ${PHONE_IP}:5555 || true
                         sleep 3
 
@@ -68,10 +70,10 @@ pipeline {
 
                         DEVICE_COUNT=$(adb devices | grep -w "device" | wc -l)
                         if [ $DEVICE_COUNT -eq 0 ]; then
-                            echo "ERREUR: Aucun appareil détecté"
+                            echo "❌ ERREUR: Aucun appareil détecté"
                             exit 1
                         fi
-                        echo "${DEVICE_COUNT} appareil(s) connecté(s)"
+                        echo "✓ ${DEVICE_COUNT} appareil(s) connecté(s)"
 
                         echo ""
                         echo "=== INFORMATIONS APPAREIL ==="
@@ -81,15 +83,42 @@ pipeline {
                         echo "API Level  : $(adb shell getprop ro.build.version.sdk)"
 
                         echo ""
-                        echo "Désinstallation de l'ancienne version..."
+                        echo "=== DÉSINSTALLATION ANCIENNE VERSION ==="
                         adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   Pas d'ancienne version (OK)"
 
                         echo ""
-                        echo "=== INSTALLATION DE L'APP ==="
+                        echo "=== INSTALLATION DE L'APK ==="
                         adb install -r app/build/outputs/apk/debug/app-debug.apk
 
                         echo ""
-                        echo "✅ Préparation terminée - L'app lira les fichiers depuis les assets"
+                        echo "=== ATTRIBUTION DES PERMISSIONS SYSTÈME ==="
+                        echo "Attribution WRITE_SETTINGS..."
+                        adb shell pm grant com.qos.latency.analyzer android.permission.WRITE_SETTINGS || echo "   Déjà accordée"
+
+                        echo "Attribution WRITE_SECURE_SETTINGS..."
+                        adb shell pm grant com.qos.latency.analyzer android.permission.WRITE_SECURE_SETTINGS || echo "   Déjà accordée"
+
+                        echo "Attribution ACCESS_FINE_LOCATION..."
+                        adb shell pm grant com.qos.latency.analyzer android.permission.ACCESS_FINE_LOCATION || echo "   Déjà accordée"
+
+                        echo "Attribution ACCESS_COARSE_LOCATION..."
+                        adb shell pm grant com.qos.latency.analyzer android.permission.ACCESS_COARSE_LOCATION || echo "   Déjà accordée"
+
+                        echo ""
+                        echo "=== VÉRIFICATION DES PERMISSIONS ==="
+                        adb shell dumpsys package com.qos.latency.analyzer | grep "permission granted=true" || echo "Vérification terminée"
+
+                        echo ""
+                        echo "=== RÉINITIALISATION DES PARAMÈTRES SYSTÈME ==="
+                        echo "Réinitialisation batterie..."
+                        adb shell dumpsys battery reset
+
+                        echo "Désactivation mode avion..."
+                        adb shell settings put global airplane_mode_on 0
+                        adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state false
+
+                        echo ""
+                        echo "✅ Préparation terminée avec succès"
                     '''
                 }
             }
@@ -97,8 +126,7 @@ pipeline {
 
         stage('Démarrage Appium Server') {
             steps {
-
-                echo 'Démarrage du serveur Appium'
+                echo '🚀 Démarrage du serveur Appium'
 
                 script {
                     sh '''
@@ -118,28 +146,52 @@ pipeline {
                         echo "Attente du démarrage d'Appium..."
                         sleep 10
 
-                        echo "Appium démarré"
+                        echo "Appium démarré avec succès"
 
                         echo ""
                         echo "=== LOGS APPIUM (10 premières lignes) ==="
-                        head -n 10 /tmp/appium.log || echo "Pas encore de logs"
+                        head -n 10 /tmp/appium.log || echo "Logs non encore disponibles"
                     '''
                 }
             }
         }
 
-        stage('Tests Appium') {
+        stage('Tests Appium - Mode Éco Batterie') {
             steps {
-                echo '📱 Test Appium avec visualisation (105 secondes)'
+                echo '🔋 Tests du mode économie d\'énergie basé sur la batterie'
+                echo ''
+                echo '=========================================='
+                echo 'SCÉNARIOS TESTÉS:'
+                echo '1. Activation auto si batterie < 60%'
+                echo '2. Non-activation si batterie >= 60%'
+                echo '3. Désactivation manuelle'
+                echo '4. Vérification états système'
+                echo '=========================================='
 
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                         sh '''
+                            echo "Exécution des tests de mode éco batterie..."
+
                             ./gradlew appiumTest \
                                 -Dappium.server=http://127.0.0.1:${APPIUM_PORT} \
-                                -Pandroid.testInstrumentationRunnerArguments.class=com.qos.latency.analyzer.appium.CompleteFlowAppiumTest#testCompleteExecutionFlowWithVisualization \
+                                -Pandroid.testInstrumentationRunnerArguments.class=com.qos.latency.analyzer.appium.BatteryEcoModeTest \
                                 --stacktrace \
                                 --info
+
+                            echo ""
+                            echo "=== RÉSULTATS DES TESTS ==="
+                            if [ -f "app/build/reports/tests/appiumTest/index.html" ]; then
+                                echo "✓ Rapport HTML généré avec succès"
+                                echo "  Emplacement: app/build/reports/tests/appiumTest/index.html"
+                            else
+                                echo "⚠ Rapport HTML non trouvé"
+                            fi
+
+                            if [ -d "app/build/test-results/appiumTest" ]; then
+                                echo "✓ Résultats XML générés"
+                                echo "  Nombre de fichiers: $(ls app/build/test-results/appiumTest/*.xml 2>/dev/null | wc -l)"
+                            fi
                         '''
                     }
                 }
@@ -148,21 +200,20 @@ pipeline {
 
         stage('Arrêt Appium Server') {
             steps {
-
-                echo 'Arrêt du serveur Appium'
+                echo '🛑 Arrêt du serveur Appium'
 
                 sh '''
                     echo "Arrêt d'Appium..."
                     pkill -f appium || true
                     sleep 2
-                    echo "Appium arrêté"
+                    echo "✓ Appium arrêté"
                 '''
             }
         }
 
-        stage('Tests Instrumentés') {
+        stage('Tests Instrumentés Espresso') {
             steps {
-                echo '📱 Test Espresso avec visualisation (105 secondes)'
+                echo '📱 Tests Espresso avec visualisation (105 secondes)'
 
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
@@ -179,14 +230,14 @@ pipeline {
 
         stage('Analyse Lint') {
             steps {
-                echo 'Analyse Lint Android'
+                echo '🔍 Analyse Lint Android'
                 sh './gradlew lint'
             }
         }
 
         stage('Archive APK') {
             steps {
-                echo 'Archivage de APK'
+                echo '📦 Archivage de l\'APK'
                 archiveArtifacts artifacts: '**/build/outputs/apk/debug/*.apk', allowEmptyArchive: false, fingerprint: true
             }
         }
@@ -195,38 +246,85 @@ pipeline {
 
     post {
         success {
-            echo 'Build réussi'
+            echo '=========================================='
+            echo '✅ BUILD RÉUSSI'
+            echo '=========================================='
             echo 'APK disponible dans les artifacts'
             echo 'Nom du fichier: app-debug.apk'
+            echo ''
 
             script {
+                // Publier les résultats des tests unitaires
                 def testResults = junit testResults: '**/build/test-results/**/*.xml'
-                echo "Tests exécutés : ${testResults.totalCount}"
+                echo "Tests unitaires exécutés : ${testResults.totalCount}"
                 echo "Tests réussis : ${testResults.passCount}"
                 echo "Tests échoués : ${testResults.failCount}"
+
+                // Résumé des tests Appium
+                if (fileExists('app/build/test-results/appiumTest')) {
+                    echo ""
+                    echo "=== TESTS APPIUM (MODE ÉCO) ==="
+                    sh 'ls -lh app/build/test-results/appiumTest/*.xml 2>/dev/null || echo "Résultats non trouvés"'
+                }
             }
         }
 
         failure {
-            echo 'La pipeline a échoué'
+            echo '=========================================='
+            echo '❌ LA PIPELINE A ÉCHOUÉ'
+            echo '=========================================='
             echo 'Consultez les logs ci-dessus pour identifier les erreurs'
+            echo ''
+            echo 'Points de vérification:'
+            echo '1. Connexion au téléphone'
+            echo '2. Installation de l\'APK'
+            echo '3. Permissions système accordées'
+            echo '4. Serveur Appium démarré'
+            echo '5. Tests exécutés'
+        }
+
+        unstable {
+            echo '=========================================='
+            echo '⚠️  BUILD INSTABLE (certains tests ont échoué)'
+            echo '=========================================='
+            echo 'L\'APK est construit mais certains tests ne sont pas passés'
         }
 
         always {
-            echo 'Nettoyage final'
+            echo '🧹 Nettoyage final'
 
-            // Archiver les rapports de tests
-            junit allowEmptyResults: true, testResults: '**/build/test-results/**/*.xml'
+            script {
+                // Archiver tous les rapports de tests
+                junit allowEmptyResults: true, testResults: '**/build/test-results/**/*.xml'
 
-            // Archiver les rapports Lint
-            publishHTML([
-                allowMissing: true,
-                alwaysLinkToLastBuild: true,
-                keepAll: true,
-                reportDir: 'app/build/reports',
-                reportFiles: 'lint-results-debug.html',
-                reportName: 'Lint Report'
-            ])
+                // Archiver les rapports Lint
+                publishHTML([
+                    allowMissing: true,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'app/build/reports',
+                    reportFiles: 'lint-results-debug.html',
+                    reportName: 'Rapport Lint'
+                ])
+
+                // Archiver les rapports de tests Appium
+                publishHTML([
+                    allowMissing: true,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'app/build/reports/tests/appiumTest',
+                    reportFiles: 'index.html',
+                    reportName: 'Rapport Tests Appium (Mode Éco)'
+                ])
+
+                // Réinitialiser l'appareil
+                sh '''
+                    echo "Réinitialisation de l'appareil de test..."
+                    adb shell dumpsys battery reset 2>/dev/null || true
+                    adb shell settings put global airplane_mode_on 0 2>/dev/null || true
+                    echo "✓ Appareil réinitialisé"
+                '''
+            }
         }
     }
 }

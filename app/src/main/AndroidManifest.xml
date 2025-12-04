@@ -1,8 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ========================================
+         PERMISSIONS POUR L'APPLICATION DE BASE
+         ======================================== -->
+
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage" />
+
+    <!-- ========================================
+         PERMISSIONS POUR LE MODE ÉCO BATTERIE
+         NOTE: BATTERY_STATS n'est PAS nécessaire
+         On utilise ACTION_BATTERY_CHANGED qui ne nécessite aucune permission
+         ======================================== -->
+
+    <!-- Permissions pour modifier les paramètres système -->
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Permissions pour la localisation (vérification/désactivation) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Permission pour gérer l'écran -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Permission pour l'état réseau -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -13,15 +40,18 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.QoSLatencyAnalyzer"
         tools:targetApi="31">
+
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
     </application>
 
 </manifest>
