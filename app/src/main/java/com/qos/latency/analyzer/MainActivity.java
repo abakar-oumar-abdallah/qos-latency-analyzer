@@ -108,18 +108,25 @@ public class MainActivity extends AppCompatActivity implements LatencyController
         Button button = new Button(this);
         String displayName = fileName.replace(".json", "");
         button.setText(displayName);
-        button.setContentDescription(displayName); // <-- Ajouté
         button.setTextColor(0xFFFFFFFF);
         button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF2196F3));
+
+        // AJOUT pour Appium : contentDescription pour l'automatisation
+        button.setContentDescription(displayName);
+
+        // Configuration de la mise en page
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
         params.setMargins(0, 0, 0, 20);
         button.setLayoutParams(params);
+
+        // Gestionnaire d'événement pour la sélection du fichier
         button.setOnClickListener(v -> selectFile(fileName));
         return button;
     }
+
 
     private void selectFile(String fileName) {
         selectedFileName = fileName;
