@@ -193,9 +193,16 @@ public abstract class BaseAppiumTest {
 
     /**
      * Obtient le chemin de l'APK
+     * CORRECTION: Gère le cas où user.dir se termine par /app
      */
     private String getApkPath() {
         String projectDir = System.getProperty("user.dir");
+
+        // Si on est dans le sous-répertoire /app, remonter d'un niveau
+        if (projectDir.endsWith("/app")) {
+            projectDir = projectDir.substring(0, projectDir.length() - 4);
+        }
+
         String apkPath = projectDir + "/app/build/outputs/apk/debug/app-debug.apk";
 
         File apkFile = new File(apkPath);
@@ -232,6 +239,12 @@ public abstract class BaseAppiumTest {
         try {
             File screenshot = driver.getScreenshotAs(org.openqa.selenium.OutputType.FILE);
             String projectDir = System.getProperty("user.dir");
+
+            // Gérer le cas où projectDir se termine par /app
+            if (projectDir.endsWith("/app")) {
+                projectDir = projectDir.substring(0, projectDir.length() - 4);
+            }
+
             String destPath = projectDir + "/app/build/screenshots/" + fileName + ".png";
 
             // Créer le répertoire si nécessaire
