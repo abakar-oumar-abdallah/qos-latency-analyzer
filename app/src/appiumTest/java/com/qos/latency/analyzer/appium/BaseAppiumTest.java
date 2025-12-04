@@ -72,21 +72,64 @@ public abstract class BaseAppiumTest {
     }
 
     /**
-     * Attend que les fichiers JSON soient chargés dans l'interface
+     * Attente robuste du chargement de la page principale + fichiers JSON
      */
     protected void waitForFilesLoaded() {
         System.out.println("⏳ Attente du chargement des fichiers...");
 
-        // FIX : Attendre que l'écran principal soit chargé avant de chercher les fichiers
         try {
-            driver.findElement(By.id(APP_PACKAGE + ":id/main_layout"));
+            handlePermissionsPopup();
+            waitForMainLayout();
+            waitForJsonFiles();
         } catch (Exception e) {
-            System.out.println("⚠️ Le layout principal n'a pas pu être confirmé, poursuite de l'attente des fichiers.");
+            System.out.println("❌ Erreur lors du chargement des fichiers: " + e.getMessage());
+            printAllVisibleElements();
+            takeScreenshot("waitForFilesLoaded_error");
+            throw e;
         }
+    }
 
-        longWait.until(driver -> {
+    /**
+     * Gère un popup Android potentiel "Autoriser"
+     */
+    private void handlePermissionsPopup() {
+        try {
+            Thread.sleep(2000);
+
+            List<WebElement> allowButtons = driver.findElements(
+                    By.xpath("//*[contains(@text, 'Autoriser') or contains(@text, 'Allow')]")
+            );
+
+            if (!allowButtons.isEmpty()) {
+                System.out.println("🔔 Popup permissions détecté → clic sur 'Autoriser'");
+                allowButtons.get(0).click();
+            }
+        } catch (Exception ignored) {}
+    }
+
+    /**
+     * Attendre le layout principal
+     */
+    private void waitForMainLayout() {
+        try {
+            System.out.println("🔍 Vérification du layout principal...");
+            longWait.until(ExpectedConditions.presenceOfElementLocated(
+                    By.id(APP_PACKAGE + ":id/btn_launch")
+            ));
+            System.out.println("✅ Layout principal détecté.");
+        } catch (Exception e) {
+            System.out.println("⚠️ Layout principal introuvable, on continue quand même...");
+        }
+    }
+
+    /**
+     * Attendre l’apparition des fichiers JSON
+     */
+    private void waitForJsonFiles() {
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(60));
+
+        wait.until(driver -> {
             try {
-                // Chercher les fichiers (en minuscules, comme ils apparaissent réellement)
                 List<WebElement> files = driver.findElements(
                         By.xpath("//android.widget.Button[contains(@text, 'data_') or contains(@text, 'test_') or contains(@text, 'new_')]")
                 );
@@ -99,7 +142,8 @@ public abstract class BaseAppiumTest {
                     return true;
                 }
                 return false;
-            } catch (Exception e) {
+
+            } catch (Exception ex) {
                 return false;
             }
         });
@@ -125,18 +169,30 @@ public abstract class BaseAppiumTest {
         return By.xpath("//android.widget.Button[contains(@text, '" + cleanFileName + "')]");
     }
 
+    /**
+     * Retourne le locator pour le bouton Launch/Lancer
+     */
     protected By getLaunchButtonLocator() {
         return By.id(APP_PACKAGE + ":id/btn_launch");
     }
 
+    /**
+     * Retourne le locator pour le TextView du status
+     */
     protected By getStatusTextLocator() {
         return By.id(APP_PACKAGE + ":id/tv_status");
     }
 
+    /**
+     * Retourne le locator pour la ProgressBar
+     */
     protected By getProgressBarLocator() {
         return By.id(APP_PACKAGE + ":id/progressBar");
     }
 
+    /**
+     * Attend et clique sur un élément
+     */
     protected void waitAndClick(By locator, String elementName) {
         System.out.println("🔍 Recherche de l'élément: " + elementName);
         WebElement element = mediumWait.until(ExpectedConditions.elementToBeClickable(locator));
@@ -145,11 +201,17 @@ public abstract class BaseAppiumTest {
         System.out.println("👆 Clic effectué sur: " + elementName);
     }
 
+    /**
+     * Attend et récupère le texte d'un élément
+     */
     protected String waitAndGetText(By locator) {
         WebElement element = mediumWait.until(ExpectedConditions.presenceOfElementLocated(locator));
         return element.getText();
     }
 
+    /**
+     * Vérifie si un élément est affiché
+     */
     protected boolean isElementDisplayed(By locator, int timeoutSeconds) {
         try {
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
@@ -160,6 +222,9 @@ public abstract class BaseAppiumTest {
         }
     }
 
+    /**
+     * Attend qu'un élément contienne un texte spécifique
+     */
     protected void waitForTextInElement(By locator, String expectedText, int timeoutSeconds) {
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
         wait.until(driver -> {
@@ -174,6 +239,9 @@ public abstract class BaseAppiumTest {
         });
     }
 
+    /**
+     * Obtient le chemin de l'APK
+     */
     private String getApkPath() {
         String projectDir = System.getProperty("user.dir");
 
@@ -192,6 +260,9 @@ public abstract class BaseAppiumTest {
         return apkPath;
     }
 
+    /**
+     * Affiche tous les éléments visibles
+     */
     protected void printAllVisibleElements() {
         System.out.println("\n📋 Éléments visibles:");
         List<WebElement> elements = driver.findElements(By.xpath("//*[@text]"));
@@ -201,11 +272,13 @@ public abstract class BaseAppiumTest {
                 if (text != null && !text.isEmpty()) {
                     System.out.println("  - " + element.getTagName() + ": " + text);
                 }
-            } catch (Exception e) {
-            }
+            } catch (Exception ignored) {}
         }
     }
 
+    /**
+     * Prend une capture d'écran (pour debug)
+     */
     protected void takeScreenshot(String fileName) {
         try {
             File screenshot = driver.getScreenshotAs(org.openqa.selenium.OutputType.FILE);
