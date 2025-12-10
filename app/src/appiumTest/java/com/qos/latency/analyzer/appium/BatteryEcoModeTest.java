@@ -1,7 +1,7 @@
 package com.qos.latency.analyzer.appium;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
@@ -11,7 +11,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests Appium pour le mode économie d'énergie basé sur le niveau de batterie.
@@ -25,7 +25,7 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
 
     private static final int ECO_MODE_THRESHOLD = 60;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         super.setUp();
         resetSystemSettings();
@@ -43,8 +43,8 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
 
             // Vérifier que la batterie a bien été simulée
             int currentLevel = getCurrentBatteryLevel();
-            assertTrue("La batterie devrait être à " + lowBattery + "%, mais elle est à " + currentLevel + "%",
-                    currentLevel <= lowBattery + 5); // Tolérance de 5%
+            assertTrue(currentLevel <= lowBattery + 5,
+                    "La batterie devrait être à " + lowBattery + "%, mais elle est à " + currentLevel + "%");
 
             // 2. Relancer l'app pour déclencher la vérification
             driver.terminateApp("com.qos.latency.analyzer");
@@ -56,13 +56,13 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
                     By.xpath("//*[contains(@text, 'Mode Économie d\\'Énergie Activé')]")
             ));
 
-            assertNotNull("Le dialogue du mode éco devrait s'afficher", ecoDialog);
-            assertTrue("Le dialogue devrait mentionner la batterie faible",
-                    ecoDialog.getText().contains("45%"));
+            assertNotNull(ecoDialog, "Le dialogue du mode éco devrait s'afficher");
+            assertTrue(ecoDialog.getText().contains("45%"),
+                    "Le dialogue devrait mentionner la batterie faible");
 
             // 4. Vérifier que le mode avion a été activé
             boolean isAirplaneModeOn = isAirplaneModeEnabled();
-            assertTrue("Le mode avion devrait être activé automatiquement", isAirplaneModeOn);
+            assertTrue(isAirplaneModeOn, "Le mode avion devrait être activé automatiquement");
 
             // 5. Fermer le dialogue
             WebElement okButton = driver.findElement(By.xpath("//*[@text='OK']"));
@@ -72,7 +72,8 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
             WebElement deactivateButton = wait.until(ExpectedConditions.presenceOfElementLocated(
                     By.id("com.qos.latency.analyzer:id/btnDeactivateEcoMode")
             ));
-            assertTrue("Le bouton de désactivation devrait être visible", deactivateButton.isDisplayed());
+            assertTrue(deactivateButton.isDisplayed(),
+                    "Le bouton de désactivation devrait être visible");
 
         } catch (Exception e) {
             fail("Test échoué : " + e.getMessage());
@@ -90,8 +91,8 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
             setBatteryLevel(sufficientBattery);
 
             int currentLevel = getCurrentBatteryLevel();
-            assertTrue("La batterie devrait être à " + sufficientBattery + "%, mais elle est à " + currentLevel + "%",
-                    currentLevel >= sufficientBattery - 5);
+            assertTrue(currentLevel >= sufficientBattery - 5,
+                    "La batterie devrait être à " + sufficientBattery + "%, mais elle est à " + currentLevel + "%");
 
             // 2. Relancer l'app
             driver.terminateApp("com.qos.latency.analyzer");
@@ -103,7 +104,7 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
                     By.xpath("//*[contains(@text, 'Sélection du fichier')]")
             ));
 
-            assertNotNull("L'écran de sélection devrait s'afficher", selectionScreen);
+            assertNotNull(selectionScreen, "L'écran de sélection devrait s'afficher");
 
             // 4. Vérifier qu'aucun dialogue mode éco n'est affiché
             try {
@@ -115,7 +116,8 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
 
             // 5. Vérifier que le mode avion n'a pas été activé
             boolean isAirplaneModeOn = isAirplaneModeEnabled();
-            assertFalse("Le mode avion ne devrait PAS être activé avec batterie >= 60%", isAirplaneModeOn);
+            assertFalse(isAirplaneModeOn,
+                    "Le mode avion ne devrait PAS être activé avec batterie >= 60%");
 
         } catch (Exception e) {
             fail("Test échoué : " + e.getMessage());
@@ -155,7 +157,8 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
             // 5. Vérifier que le mode avion a été désactivé
             Thread.sleep(2000); // Laisser le temps au système de désactiver le mode avion
             boolean isAirplaneModeOn = isAirplaneModeEnabled();
-            assertFalse("Le mode avion devrait être désactivé après clic sur le bouton", isAirplaneModeOn);
+            assertFalse(isAirplaneModeOn,
+                    "Le mode avion devrait être désactivé après clic sur le bouton");
 
             // 6. Vérifier le toast de confirmation (optionnel, les toasts sont difficiles à capturer)
             // Note: Les toasts Appium ne sont pas toujours capturables, on se fie aux états système
@@ -183,10 +186,11 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
 
             // 2. Vérifier tous les états système
             int batteryLevel = getCurrentBatteryLevel();
-            assertTrue("Batterie devrait être < 60%", batteryLevel < ECO_MODE_THRESHOLD);
+            assertTrue(batteryLevel < ECO_MODE_THRESHOLD,
+                    "Batterie devrait être < 60%");
 
             boolean airplaneModeOn = isAirplaneModeEnabled();
-            assertTrue("Mode avion devrait être ON", airplaneModeOn);
+            assertTrue(airplaneModeOn, "Mode avion devrait être ON");
 
             boolean locationEnabled = isLocationEnabled();
             // La localisation peut encore être activée si l'app n'a pas réussi à la désactiver
@@ -196,12 +200,12 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
             WebElement dialogText = driver.findElement(
                     By.xpath("//*[contains(@text, 'Actions effectuées')]")
             );
-            assertNotNull("Le dialogue devrait afficher les actions effectuées", dialogText);
+            assertNotNull(dialogText, "Le dialogue devrait afficher les actions effectuées");
 
             // Le texte devrait mentionner le mode avion
             String fullText = dialogText.getText();
-            assertTrue("Le texte devrait mentionner le mode avion",
-                    fullText.contains("Mode avion") || fullText.contains("Activé"));
+            assertTrue(fullText.contains("Mode avion") || fullText.contains("Activé"),
+                    "Le texte devrait mentionner le mode avion");
 
         } catch (Exception e) {
             fail("Test échoué : " + e.getMessage());
