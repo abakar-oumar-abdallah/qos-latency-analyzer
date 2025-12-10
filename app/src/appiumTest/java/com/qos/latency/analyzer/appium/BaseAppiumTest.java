@@ -28,7 +28,7 @@ public class BaseAppiumTest {
         options.setAutomationName("UiAutomator2");
         options.setApp("/var/jenkins_home/workspace/QoS-Latency-Analyzer/app/build/outputs/apk/debug/app-debug.apk");
         options.setDeviceName("SM-S911B");
-        options.setUdid("192.168.1.109:5555");
+        options.setUdid("192.168.1.109:36505");
 
         options.setNoReset(false);
         options.setFullReset(false);
