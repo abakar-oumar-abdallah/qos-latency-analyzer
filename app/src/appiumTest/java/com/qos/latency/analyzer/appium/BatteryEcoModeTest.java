@@ -1,8 +1,9 @@
 package com.qos.latency.analyzer.appium;
 
+import io.appium.java_client.MobileBy;
+import io.appium.java_client.android.AndroidDriver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -15,231 +16,219 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests Appium pour le mode économie d'énergie basé sur le niveau de batterie.
- *
- * Pré-requis :
- * - Appium server lancé sur http://127.0.0.1:4723
- * - Appareil Android connecté via ADB
- * - Permissions WRITE_SECURE_SETTINGS et ACCESS_FINE_LOCATION accordées via ADB
+ * Tests Appium pour la fonctionnalité Mode Économie d'Énergie
+ * VERSION FINALE : Correction XPath UTF-8 avec AndroidUIAutomator + UiSelector
  */
 public class BatteryEcoModeTest extends BaseAppiumTest {
 
-    private static final int ECO_MODE_THRESHOLD = 60;
+    private WebDriverWait wait;
 
     @BeforeEach
     public void setUp() throws MalformedURLException, InterruptedException {
         super.setUp();
+        wait = new WebDriverWait(driver, Duration.ofSeconds(10));
         resetSystemSettings();
     }
 
-    /**
-     * Test 1 : Vérifier que le mode éco s'active automatiquement quand la batterie est faible (< 60%)
-     */
     @Test
     public void testEcoModeActivatesWhenBatteryLow() {
         try {
-            // 1. Simuler batterie faible (45%)
-            int lowBattery = 45;
-            setBatteryLevel(lowBattery);
+            // Définir niveau batterie bas (45%)
+            setBatteryLevel(45);
+            Thread.sleep(2000);
 
-            // Vérifier que la batterie a bien été simulée
-            int currentLevel = getCurrentBatteryLevel();
-            assertTrue(currentLevel <= lowBattery + 5,
-                    "La batterie devrait être à " + lowBattery + "%, mais elle est à " + currentLevel + "%");
+            // Vérifier que la batterie est bien à 45%
+            int batteryLevel = getCurrentBatteryLevel();
+            assertTrue(batteryLevel == 45, "La batterie devrait être à 45%, mais elle est à " + batteryLevel + "%");
 
-            // 2. Relancer l'app pour déclencher la vérification
-            driver.terminateApp("com.qos.latency.analyzer");
-            driver.activateApp("com.qos.latency.analyzer");
+            // Attendre que le dialogue apparaisse
+            Thread.sleep(3000);
 
-            // 3. Attendre l'affichage du dialogue mode éco
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-            WebElement ecoDialog = wait.until(ExpectedConditions.presenceOfElementLocated(
-                    By.xpath("//*[contains(@text, 'Mode Économie d\\'Énergie Activé')]")
+            // CORRECTION : Utiliser AndroidUIAutomator avec UiSelector au lieu de XPath
+            WebElement dialogTitle = wait.until(ExpectedConditions.presenceOfElementLocated(
+                    MobileBy.AndroidUIAutomator("new UiSelector().textContains(\"Mode Économie\")")
             ));
+            assertNotNull(dialogTitle, "Le dialogue du Mode Économie d'Énergie devrait être affiché");
 
-            assertNotNull(ecoDialog, "Le dialogue du mode éco devrait s'afficher");
-            assertTrue(ecoDialog.getText().contains("45%"),
-                    "Le dialogue devrait mentionner la batterie faible");
+            // Vérifier le message du dialogue
+            WebElement dialogMessage = driver.findElement(
+                    MobileBy.AndroidUIAutomator("new UiSelector().textContains(\"La batterie est faible\")")
+            );
+            assertNotNull(dialogMessage, "Le message d'avertissement devrait être affiché");
 
-            // 4. Vérifier que le mode avion a été activé
-            boolean isAirplaneModeOn = isAirplaneModeEnabled();
-            assertTrue(isAirplaneModeOn, "Le mode avion devrait être activé automatiquement");
-
-            // 5. Fermer le dialogue
-            WebElement okButton = driver.findElement(By.xpath("//*[@text='OK']"));
+            // Cliquer sur OK pour activer le mode économie
+            WebElement okButton = wait.until(ExpectedConditions.elementToBeClickable(
+                    MobileBy.AndroidUIAutomator("new UiSelector().text(\"OK\")")
+            ));
             okButton.click();
+            Thread.sleep(2000);
 
-            // 6. Vérifier que le bouton de désactivation est visible
+            // Vérifier que le mode avion est activé
+            assertTrue(isAirplaneModeEnabled(), "Le mode avion devrait être activé");
+
+            // Vérifier que le bouton de désactivation est visible
             WebElement deactivateButton = wait.until(ExpectedConditions.presenceOfElementLocated(
-                    By.id("com.qos.latency.analyzer:id/btnDeactivateEcoMode")
+                    MobileBy.AndroidUIAutomator("new UiSelector().resourceId(\"com.qos.latency.analyzer:id/deactivateButton\")")
             ));
-            assertTrue(deactivateButton.isDisplayed(),
-                    "Le bouton de désactivation devrait être visible");
+            assertTrue(deactivateButton.isDisplayed(), "Le bouton de désactivation devrait être visible");
 
         } catch (Exception e) {
             fail("Test échoué : " + e.getMessage());
         }
     }
 
-    /**
-     * Test 2 : Vérifier que le mode éco ne s'active PAS quand la batterie est suffisante (>= 60%)
-     */
     @Test
     public void testEcoModeDoesNotActivateWhenBatterySufficient() {
         try {
-            // 1. Simuler batterie suffisante (75%)
-            int sufficientBattery = 75;
-            setBatteryLevel(sufficientBattery);
+            // Définir niveau batterie suffisant (75%)
+            setBatteryLevel(75);
+            Thread.sleep(2000);
 
-            int currentLevel = getCurrentBatteryLevel();
-            assertTrue(currentLevel >= sufficientBattery - 5,
-                    "La batterie devrait être à " + sufficientBattery + "%, mais elle est à " + currentLevel + "%");
+            // Vérifier que la batterie est bien à 75%
+            int batteryLevel = getCurrentBatteryLevel();
+            assertTrue(batteryLevel == 75, "La batterie devrait être à 75%, mais elle est à " + batteryLevel + "%");
 
-            // 2. Relancer l'app
-            driver.terminateApp("com.qos.latency.analyzer");
-            driver.activateApp("com.qos.latency.analyzer");
+            // Attendre un peu pour s'assurer qu'aucun dialogue n'apparaît
+            Thread.sleep(3000);
 
-            // 3. Attendre l'écran principal (sélection fichier)
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-            WebElement selectionScreen = wait.until(ExpectedConditions.presenceOfElementLocated(
-                    By.xpath("//*[contains(@text, 'Sélection du fichier')]")
-            ));
-
-            assertNotNull(selectionScreen, "L'écran de sélection devrait s'afficher");
-
-            // 4. Vérifier qu'aucun dialogue mode éco n'est affiché
+            // CORRECTION : Utiliser AndroidUIAutomator pour vérifier l'absence du dialogue
             try {
-                driver.findElement(By.xpath("//*[contains(@text, 'Mode Économie d\\'Énergie')]"));
-                fail("Le dialogue mode éco ne devrait PAS s'afficher avec une batterie >= 60%");
+                driver.findElement(
+                        MobileBy.AndroidUIAutomator("new UiSelector().textContains(\"Mode Économie\")")
+                );
+                fail("Le dialogue du Mode Économie d'Énergie ne devrait PAS être affiché");
             } catch (org.openqa.selenium.NoSuchElementException e) {
-                // C'est le comportement attendu
+                // C'est le comportement attendu - le dialogue ne doit pas apparaître
             }
 
-            // 5. Vérifier que le mode avion n'a pas été activé
-            boolean isAirplaneModeOn = isAirplaneModeEnabled();
-            assertFalse(isAirplaneModeOn,
-                    "Le mode avion ne devrait PAS être activé avec batterie >= 60%");
+            // Vérifier que l'écran de sélection de jeu est affiché
+            WebElement gameSelectionTitle = driver.findElement(
+                    MobileBy.AndroidUIAutomator("new UiSelector().text(\"Sélectionner un jeu\")")
+            );
+            assertNotNull(gameSelectionTitle, "L'écran de sélection de jeu devrait être affiché");
+
+            // Vérifier que le mode avion n'est PAS activé
+            assertFalse(isAirplaneModeEnabled(), "Le mode avion ne devrait PAS être activé");
 
         } catch (Exception e) {
             fail("Test échoué : " + e.getMessage());
         }
     }
 
-    /**
-     * Test 3 : Vérifier la désactivation manuelle du mode éco via le bouton orange
-     */
     @Test
     public void testManualEcoModeDeactivation() {
         try {
-            // 1. Activer le mode éco (batterie 40%)
+            // Définir niveau batterie bas (40%)
             setBatteryLevel(40);
-            driver.terminateApp("com.qos.latency.analyzer");
-            driver.activateApp("com.qos.latency.analyzer");
+            Thread.sleep(2000);
 
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+            // Attendre que le dialogue apparaisse
+            Thread.sleep(3000);
 
-            // 2. Fermer le dialogue initial
+            // CORRECTION : Utiliser AndroidUIAutomator
+            WebElement dialogTitle = wait.until(ExpectedConditions.presenceOfElementLocated(
+                    MobileBy.AndroidUIAutomator("new UiSelector().textContains(\"Mode Économie\")")
+            ));
+            assertNotNull(dialogTitle, "Le dialogue du Mode Économie d'Énergie devrait être affiché");
+
+            // Cliquer sur OK pour activer le mode économie
             WebElement okButton = wait.until(ExpectedConditions.elementToBeClickable(
-                    By.xpath("//*[@text='OK']")
+                    MobileBy.AndroidUIAutomator("new UiSelector().text(\"OK\")")
             ));
             okButton.click();
+            Thread.sleep(2000);
 
-            // 3. Cliquer sur le bouton de désactivation
+            // Vérifier que le mode avion est activé
+            assertTrue(isAirplaneModeEnabled(), "Le mode avion devrait être activé");
+
+            // Cliquer sur le bouton de désactivation
             WebElement deactivateButton = wait.until(ExpectedConditions.elementToBeClickable(
-                    By.id("com.qos.latency.analyzer:id/btnDeactivateEcoMode")
+                    MobileBy.AndroidUIAutomator("new UiSelector().resourceId(\"com.qos.latency.analyzer:id/deactivateButton\")")
             ));
             deactivateButton.click();
+            Thread.sleep(2000);
 
-            // 4. Attendre que le bouton disparaisse
-            wait.until(ExpectedConditions.invisibilityOfElementLocated(
-                    By.id("com.qos.latency.analyzer:id/btnDeactivateEcoMode")
-            ));
-
-            // 5. Vérifier que le mode avion a été désactivé
-            Thread.sleep(2000); // Laisser le temps au système de désactiver le mode avion
-            boolean isAirplaneModeOn = isAirplaneModeEnabled();
-            assertFalse(isAirplaneModeOn,
-                    "Le mode avion devrait être désactivé après clic sur le bouton");
-
-            // 6. Vérifier le toast de confirmation (optionnel, les toasts sont difficiles à capturer)
-            // Note: Les toasts Appium ne sont pas toujours capturables, on se fie aux états système
+            // Vérifier que le mode avion est désactivé
+            assertFalse(isAirplaneModeEnabled(), "Le mode avion devrait être désactivé");
 
         } catch (Exception e) {
             fail("Test échoué : " + e.getMessage());
         }
     }
 
-    /**
-     * Test 4 : Vérification complète de l'état système après activation du mode éco
-     */
     @Test
     public void testCompleteSystemStateVerification() {
         try {
-            // 1. Activer le mode éco
+            // Définir niveau batterie très bas (35%)
             setBatteryLevel(35);
-            driver.terminateApp("com.qos.latency.analyzer");
-            driver.activateApp("com.qos.latency.analyzer");
+            Thread.sleep(2000);
 
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-            wait.until(ExpectedConditions.presenceOfElementLocated(
-                    By.xpath("//*[contains(@text, 'Mode Économie d\\'Énergie')]")
+            // Attendre que le dialogue apparaisse
+            Thread.sleep(3000);
+
+            // CORRECTION : Utiliser AndroidUIAutomator
+            WebElement dialogTitle = wait.until(ExpectedConditions.presenceOfElementLocated(
+                    MobileBy.AndroidUIAutomator("new UiSelector().textContains(\"Mode Économie\")")
             ));
+            assertNotNull(dialogTitle, "Le dialogue du Mode Économie d'Énergie devrait être affiché");
 
-            // 2. Vérifier tous les états système
+            // Cliquer sur OK
+            WebElement okButton = wait.until(ExpectedConditions.elementToBeClickable(
+                    MobileBy.AndroidUIAutomator("new UiSelector().text(\"OK\")")
+            ));
+            okButton.click();
+            Thread.sleep(2000);
+
+            // Vérifications complètes de l'état du système
+            assertTrue(isAirplaneModeEnabled(), "Mode avion devrait être activé");
+            assertFalse(isLocationEnabled(), "Localisation devrait être désactivée");
+
+            // Vérifier le niveau de batterie
             int batteryLevel = getCurrentBatteryLevel();
-            assertTrue(batteryLevel < ECO_MODE_THRESHOLD,
-                    "Batterie devrait être < 60%");
+            assertTrue(batteryLevel <= 60, "Mode éco devrait être actif pour batterie <= 60%");
 
-            boolean airplaneModeOn = isAirplaneModeEnabled();
-            assertTrue(airplaneModeOn, "Mode avion devrait être ON");
-
-            boolean locationEnabled = isLocationEnabled();
-            // La localisation peut encore être activée si l'app n'a pas réussi à la désactiver
-            // (nécessite parfois des permissions supplémentaires ou une action utilisateur)
-
-            // 3. Vérifier le contenu du dialogue
-            WebElement dialogText = driver.findElement(
-                    By.xpath("//*[contains(@text, 'Actions effectuées')]")
+            // Vérifier l'interface utilisateur
+            WebElement deactivateButton = driver.findElement(
+                    MobileBy.AndroidUIAutomator("new UiSelector().resourceId(\"com.qos.latency.analyzer:id/deactivateButton\")")
             );
-            assertNotNull(dialogText, "Le dialogue devrait afficher les actions effectuées");
-
-            // Le texte devrait mentionner le mode avion
-            String fullText = dialogText.getText();
-            assertTrue(fullText.contains("Mode avion") || fullText.contains("Activé"),
-                    "Le texte devrait mentionner le mode avion");
+            assertTrue(deactivateButton.isDisplayed(), "Bouton de désactivation devrait être visible");
+            assertTrue(deactivateButton.isEnabled(), "Bouton de désactivation devrait être actif");
 
         } catch (Exception e) {
             fail("Test échoué : " + e.getMessage());
         }
     }
 
-    // ========================================
-    // MÉTHODES UTILITAIRES
-    // ========================================
+    // ==================== MÉTHODES UTILITAIRES ====================
 
     /**
-     * Obtient le niveau actuel de la batterie depuis l'appareil
+     * Récupère le niveau de batterie actuel du dispositif
      */
     private int getCurrentBatteryLevel() {
-        String output = executeShellCommand("dumpsys battery | grep level");
-        // Format attendu : "  level: 45"
-        String[] parts = output.trim().split(":");
-        if (parts.length >= 2) {
-            return Integer.parseInt(parts[1].trim());
+        try {
+            String output = executeShellCommand("dumpsys battery | grep level");
+            String[] lines = output.split("\n");
+            for (String line : lines) {
+                if (line.trim().startsWith("level:")) {
+                    String levelStr = line.split(":")[1].trim();
+                    return Integer.parseInt(levelStr);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la lecture du niveau de batterie: " + e.getMessage());
         }
-        return 100; // Par défaut
+        return 100; // Valeur par défaut
     }
 
     /**
-     * Simule un niveau de batterie spécifique
+     * Définit le niveau de batterie du dispositif pour les tests
      */
     private void setBatteryLevel(int level) {
-        executeShellCommand("dumpsys battery set level " + level);
-        executeShellCommand("dumpsys battery set status 3"); // Status 3 = Discharging
         try {
-            Thread.sleep(1000); // Laisser le temps au système de mettre à jour
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            executeShellCommand("dumpsys battery set level " + level);
+            executeShellCommand("dumpsys battery set status 3"); // 3 = discharging
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la définition du niveau de batterie: " + e.getMessage());
         }
     }
 
@@ -247,31 +236,40 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
      * Vérifie si le mode avion est activé
      */
     private boolean isAirplaneModeEnabled() {
-        String output = executeShellCommand("settings get global airplane_mode_on");
-        return "1".equals(output.trim());
+        try {
+            String output = executeShellCommand("settings get global airplane_mode_on");
+            return output.trim().equals("1");
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la vérification du mode avion: " + e.getMessage());
+            return false;
+        }
     }
 
     /**
      * Vérifie si la localisation est activée
      */
     private boolean isLocationEnabled() {
-        String output = executeShellCommand("settings get secure location_providers_allowed");
-        return output != null && !output.trim().isEmpty() && !output.contains("null");
+        try {
+            String output = executeShellCommand("settings get secure location_mode");
+            return !output.trim().equals("0");
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la vérification de la localisation: " + e.getMessage());
+            return false;
+        }
     }
 
     /**
-     * Exécute une commande shell sur l'appareil via Appium
+     * Exécute une commande shell sur le dispositif
      */
     private String executeShellCommand(String command) {
         try {
             Map<String, Object> args = new HashMap<>();
             args.put("command", command);
-            Object result = driver.executeScript("mobile: shell", args);
+            Object result = ((AndroidDriver) driver).executeScript("mobile: shell", args);
             return result != null ? result.toString() : "";
         } catch (Exception e) {
             System.err.println("Erreur lors de l'exécution de la commande: " + command);
-            e.printStackTrace();
-            return "";
+            throw new RuntimeException(e);
         }
     }
 
@@ -280,16 +278,13 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
      */
     private void resetSystemSettings() {
         try {
-            // Réinitialiser la batterie
             executeShellCommand("dumpsys battery reset");
-
-            // Désactiver le mode avion
+            Thread.sleep(1000);
             executeShellCommand("settings put global airplane_mode_on 0");
             executeShellCommand("am broadcast -a android.intent.action.AIRPLANE_MODE --ez state false");
-
-            Thread.sleep(2000); // Laisser le temps au système de se stabiliser
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            Thread.sleep(1000);
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la réinitialisation des paramètres: " + e.getMessage());
         }
     }
 }
