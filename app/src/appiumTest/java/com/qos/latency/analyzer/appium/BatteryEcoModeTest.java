@@ -7,6 +7,7 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import java.net.MalformedURLException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,7 +27,7 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
     private static final int ECO_MODE_THRESHOLD = 60;
 
     @BeforeEach
-    public void setUp() throws Exception {
+    public void setUp() throws MalformedURLException, InterruptedException {
         super.setUp();
         resetSystemSettings();
     }
