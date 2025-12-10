@@ -26,7 +26,7 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
     private static final int ECO_MODE_THRESHOLD = 60;
 
     @BeforeEach
-    public void setUp() {
+    public void setUp() throws Exception {
         super.setUp();
         resetSystemSettings();
     }
