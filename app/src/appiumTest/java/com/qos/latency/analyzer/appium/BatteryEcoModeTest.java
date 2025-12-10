@@ -1,6 +1,6 @@
 package com.qos.latency.analyzer.appium;
 
-import io.appium.java_client.MobileBy;
+import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.AndroidDriver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests Appium pour la fonctionnalité Mode Économie d'Énergie
- * VERSION FINALE : Correction XPath UTF-8 avec AndroidUIAutomator + UiSelector
+ * VERSION FINALE : AppiumBy + androidUIAutomator (Appium 9+)
  */
 public class BatteryEcoModeTest extends BaseAppiumTest {
 
@@ -44,21 +44,21 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
             // Attendre que le dialogue apparaisse
             Thread.sleep(3000);
 
-            // CORRECTION : Utiliser AndroidUIAutomator avec UiSelector au lieu de XPath
+            // CORRECTION : Utiliser AppiumBy.androidUIAutomator (Appium 9+)
             WebElement dialogTitle = wait.until(ExpectedConditions.presenceOfElementLocated(
-                    MobileBy.AndroidUIAutomator("new UiSelector().textContains(\"Mode Économie\")")
+                    AppiumBy.androidUIAutomator("new UiSelector().textContains(\"Mode Économie\")")
             ));
             assertNotNull(dialogTitle, "Le dialogue du Mode Économie d'Énergie devrait être affiché");
 
             // Vérifier le message du dialogue
             WebElement dialogMessage = driver.findElement(
-                    MobileBy.AndroidUIAutomator("new UiSelector().textContains(\"La batterie est faible\")")
+                    AppiumBy.androidUIAutomator("new UiSelector().textContains(\"La batterie est faible\")")
             );
             assertNotNull(dialogMessage, "Le message d'avertissement devrait être affiché");
 
             // Cliquer sur OK pour activer le mode économie
             WebElement okButton = wait.until(ExpectedConditions.elementToBeClickable(
-                    MobileBy.AndroidUIAutomator("new UiSelector().text(\"OK\")")
+                    AppiumBy.androidUIAutomator("new UiSelector().text(\"OK\")")
             ));
             okButton.click();
             Thread.sleep(2000);
@@ -68,7 +68,7 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
 
             // Vérifier que le bouton de désactivation est visible
             WebElement deactivateButton = wait.until(ExpectedConditions.presenceOfElementLocated(
-                    MobileBy.AndroidUIAutomator("new UiSelector().resourceId(\"com.qos.latency.analyzer:id/deactivateButton\")")
+                    AppiumBy.androidUIAutomator("new UiSelector().resourceId(\"com.qos.latency.analyzer:id/deactivateButton\")")
             ));
             assertTrue(deactivateButton.isDisplayed(), "Le bouton de désactivation devrait être visible");
 
@@ -91,10 +91,10 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
             // Attendre un peu pour s'assurer qu'aucun dialogue n'apparaît
             Thread.sleep(3000);
 
-            // CORRECTION : Utiliser AndroidUIAutomator pour vérifier l'absence du dialogue
+            // CORRECTION : Utiliser AppiumBy.androidUIAutomator
             try {
                 driver.findElement(
-                        MobileBy.AndroidUIAutomator("new UiSelector().textContains(\"Mode Économie\")")
+                        AppiumBy.androidUIAutomator("new UiSelector().textContains(\"Mode Économie\")")
                 );
                 fail("Le dialogue du Mode Économie d'Énergie ne devrait PAS être affiché");
             } catch (org.openqa.selenium.NoSuchElementException e) {
@@ -103,7 +103,7 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
 
             // Vérifier que l'écran de sélection de jeu est affiché
             WebElement gameSelectionTitle = driver.findElement(
-                    MobileBy.AndroidUIAutomator("new UiSelector().text(\"Sélectionner un jeu\")")
+                    AppiumBy.androidUIAutomator("new UiSelector().text(\"Sélectionner un jeu\")")
             );
             assertNotNull(gameSelectionTitle, "L'écran de sélection de jeu devrait être affiché");
 
@@ -125,15 +125,15 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
             // Attendre que le dialogue apparaisse
             Thread.sleep(3000);
 
-            // CORRECTION : Utiliser AndroidUIAutomator
+            // CORRECTION : Utiliser AppiumBy.androidUIAutomator
             WebElement dialogTitle = wait.until(ExpectedConditions.presenceOfElementLocated(
-                    MobileBy.AndroidUIAutomator("new UiSelector().textContains(\"Mode Économie\")")
+                    AppiumBy.androidUIAutomator("new UiSelector().textContains(\"Mode Économie\")")
             ));
             assertNotNull(dialogTitle, "Le dialogue du Mode Économie d'Énergie devrait être affiché");
 
             // Cliquer sur OK pour activer le mode économie
             WebElement okButton = wait.until(ExpectedConditions.elementToBeClickable(
-                    MobileBy.AndroidUIAutomator("new UiSelector().text(\"OK\")")
+                    AppiumBy.androidUIAutomator("new UiSelector().text(\"OK\")")
             ));
             okButton.click();
             Thread.sleep(2000);
@@ -143,7 +143,7 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
 
             // Cliquer sur le bouton de désactivation
             WebElement deactivateButton = wait.until(ExpectedConditions.elementToBeClickable(
-                    MobileBy.AndroidUIAutomator("new UiSelector().resourceId(\"com.qos.latency.analyzer:id/deactivateButton\")")
+                    AppiumBy.androidUIAutomator("new UiSelector().resourceId(\"com.qos.latency.analyzer:id/deactivateButton\")")
             ));
             deactivateButton.click();
             Thread.sleep(2000);
@@ -166,15 +166,15 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
             // Attendre que le dialogue apparaisse
             Thread.sleep(3000);
 
-            // CORRECTION : Utiliser AndroidUIAutomator
+            // CORRECTION : Utiliser AppiumBy.androidUIAutomator
             WebElement dialogTitle = wait.until(ExpectedConditions.presenceOfElementLocated(
-                    MobileBy.AndroidUIAutomator("new UiSelector().textContains(\"Mode Économie\")")
+                    AppiumBy.androidUIAutomator("new UiSelector().textContains(\"Mode Économie\")")
             ));
             assertNotNull(dialogTitle, "Le dialogue du Mode Économie d'Énergie devrait être affiché");
 
             // Cliquer sur OK
             WebElement okButton = wait.until(ExpectedConditions.elementToBeClickable(
-                    MobileBy.AndroidUIAutomator("new UiSelector().text(\"OK\")")
+                    AppiumBy.androidUIAutomator("new UiSelector().text(\"OK\")")
             ));
             okButton.click();
             Thread.sleep(2000);
@@ -189,7 +189,7 @@ public class BatteryEcoModeTest extends BaseAppiumTest {
 
             // Vérifier l'interface utilisateur
             WebElement deactivateButton = driver.findElement(
-                    MobileBy.AndroidUIAutomator("new UiSelector().resourceId(\"com.qos.latency.analyzer:id/deactivateButton\")")
+                    AppiumBy.androidUIAutomator("new UiSelector().resourceId(\"com.qos.latency.analyzer:id/deactivateButton\")")
             );
             assertTrue(deactivateButton.isDisplayed(), "Bouton de désactivation devrait être visible");
             assertTrue(deactivateButton.isEnabled(), "Bouton de désactivation devrait être actif");
