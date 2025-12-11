@@ -109,9 +109,10 @@ public class CompleteFlowTest {
         // ========================================
         printPhase(3, "PRÉPARATION DU CLIC", TEMPO_AVANT_CLIC);
 
-        printInfo("👆 Préparation du clic sur 'data_high_variable_latency'...");
+        // ✅ CORRECTION LIGNE 115 : Remplacer underscores par espaces
+        printInfo("👆 Préparation du clic sur 'data high variable latency'...");
 
-        onView(withText("data_high_variable_latency"))
+        onView(withText("data high variable latency"))
                 .perform(scrollTo())
                 .check(matches(isDisplayed()));
 
@@ -123,10 +124,11 @@ public class CompleteFlowTest {
         // ========================================
         printPhase(4, "SÉLECTION DU FICHIER", 2000);
 
-        onView(withText("data_high_variable_latency"))
+        // ✅ CORRECTION : Remplacer underscores par espaces
+        onView(withText("data high variable latency"))
                 .perform(click());
 
-        printSuccess("Fichier 'data_high_variable_latency' sélectionné");
+        printSuccess("Fichier 'data high variable latency' sélectionné");
         Thread.sleep(2000);
 
         // ========================================

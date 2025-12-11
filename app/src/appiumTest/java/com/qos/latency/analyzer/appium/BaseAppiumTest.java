@@ -29,11 +29,37 @@ public class BaseAppiumTest {
         options.setApp("/var/jenkins_home/workspace/QoS-Latency-Analyzer/app/build/outputs/apk/debug/app-debug.apk");
         options.setDeviceName("SM-S911B");
 
-        // ✅ CORRECTION : Utiliser le port détecté dynamiquement par Jenkins
-        String phoneUdid = System.getProperty("phone.udid", "192.168.1.109:5555");
-        options.setUdid(phoneUdid);
+        // ✅ CORRECTION : Lecture robuste de la propriété phone.udid avec logs de debug
+        String phoneUdid = System.getProperty("phone.udid");
 
-        System.out.println("🔌 Connexion à l'appareil : " + phoneUdid);
+        // Logs de debug pour diagnostic
+        System.out.println("═══════════════════════════════════════════════════════");
+        System.out.println("📋 DEBUG - Configuration Appium");
+        System.out.println("═══════════════════════════════════════════════════════");
+        System.out.println("Propriété 'phone.udid' reçue : " + phoneUdid);
+
+        // Afficher toutes les propriétés pertinentes
+        System.out.println("\n🔍 Propriétés système pertinentes :");
+        System.getProperties().forEach((key, value) -> {
+            String keyStr = key.toString();
+            if (keyStr.contains("phone") || keyStr.contains("appium")) {
+                System.out.println("   " + keyStr + " = " + value);
+            }
+        });
+
+        // Vérification et fallback
+        if (phoneUdid == null || phoneUdid.trim().isEmpty()) {
+            phoneUdid = "192.168.1.109:5555";
+            System.out.println("\n⚠️  ATTENTION : Propriété 'phone.udid' non reçue");
+            System.out.println("   → Utilisation du port par défaut : " + phoneUdid);
+        } else {
+            System.out.println("\n✅ Propriété 'phone.udid' correctement reçue");
+        }
+
+        System.out.println("\n🔌 Connexion à l'appareil : " + phoneUdid);
+        System.out.println("═══════════════════════════════════════════════════════\n");
+
+        options.setUdid(phoneUdid);
 
         options.setNoReset(false);
         options.setFullReset(false);
@@ -44,17 +70,21 @@ public class BaseAppiumTest {
 
         // URL dynamique pour supporter exécution locale et Jenkins
         String appiumServer = System.getProperty("appium.server", "http://127.0.0.1:4723");
+        System.out.println("🌐 Serveur Appium : " + appiumServer);
+
         driver = new AndroidDriver(new URL(appiumServer), options);
 
         wait = new WebDriverWait(driver, Duration.ofSeconds(15));
         longWait = new WebDriverWait(driver, Duration.ofSeconds(90));
 
+        System.out.println("✅ Driver Appium initialisé avec succès\n");
         Thread.sleep(2000);
     }
 
     @AfterEach
     public void tearDown() {
         if (driver != null) {
+            System.out.println("🛑 Fermeture du driver Appium");
             driver.quit();
         }
     }
