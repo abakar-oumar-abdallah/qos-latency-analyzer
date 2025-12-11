@@ -10,6 +10,7 @@ pipeline {
         PATH = "${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${env.PATH}"
         PHONE_IP = "192.168.1.109"
         APPIUM_PORT = "4723"
+        PHONE_PORT = ""  // Sera détecté automatiquement
     }
 
     stages {
@@ -57,11 +58,39 @@ pipeline {
                 echo '📱 Connexion et préparation du téléphone'
 
                 script {
+                    // Détecter automatiquement le port ADB
+                    def detectedPort = sh(
+                        script: '''
+                            # Essayer de se connecter avec différents ports
+                            for PORT in 5555 32773 36505 5557 37717; do
+                                echo "Tentative ${PHONE_IP}:${PORT}..." >&2
+                                adb connect ${PHONE_IP}:${PORT} >/dev/null 2>&1
+                                sleep 1
+                            done
+
+                            # Récupérer le port effectivement connecté
+                            CONNECTED=$(adb devices | grep ${PHONE_IP} | grep device | awk '{print $1}')
+                            if [ ! -z "$CONNECTED" ]; then
+                                echo "$CONNECTED" | cut -d':' -f2
+                            else
+                                echo "5555"
+                            fi
+                        ''',
+                        returnStdout: true
+                    ).trim()
+
+                    env.PHONE_PORT = detectedPort
+                    echo "✅ Port détecté : ${env.PHONE_PORT}"
+
                     sh '''
                         echo "=========================================="
                         echo "CONNEXION AU TÉLÉPHONE"
                         echo "=========================================="
-                        adb connect ${PHONE_IP}:5555 || true
+                        echo "IP : ${PHONE_IP}"
+                        echo "Port : ${PHONE_PORT}"
+
+                        # Assurer la connexion sur le bon port
+                        adb connect ${PHONE_IP}:${PHONE_PORT}
                         sleep 3
 
                         echo ""
@@ -134,13 +163,14 @@ pipeline {
                         pkill -f appium || true
                         sleep 2
 
-                        echo "Démarrage d'Appium sur le port ${APPIUM_PORT}..."
+                        echo "Démarrage d'Appium sur le port ${APPIUM_PORT} avec adb_shell..."
                         nohup appium server \
                             --address 127.0.0.1 \
                             --port ${APPIUM_PORT} \
                             --log /tmp/appium.log \
                             --log-level info \
                             --use-drivers uiautomator2 \
+                            --allow-insecure adb_shell \
                             --relaxed-security &
 
                         echo "Attente du démarrage d'Appium..."
@@ -172,9 +202,11 @@ pipeline {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                         sh '''
                             echo "Exécution des tests de mode éco batterie..."
+                            echo "Port ADB utilisé : ${PHONE_PORT}"
 
                             ./gradlew appiumTest \
                                 -Dappium.server=http://127.0.0.1:${APPIUM_PORT} \
+                                -Dphone.udid=${PHONE_IP}:${PHONE_PORT} \
                                 -Pandroid.testInstrumentationRunnerArguments.class=com.qos.latency.analyzer.appium.BatteryEcoModeTest \
                                 --stacktrace \
                                 --info

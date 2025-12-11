@@ -28,7 +28,12 @@ public class BaseAppiumTest {
         options.setAutomationName("UiAutomator2");
         options.setApp("/var/jenkins_home/workspace/QoS-Latency-Analyzer/app/build/outputs/apk/debug/app-debug.apk");
         options.setDeviceName("SM-S911B");
-        options.setUdid("192.168.1.109:5555");
+
+        // ✅ CORRECTION : Utiliser le port détecté dynamiquement par Jenkins
+        String phoneUdid = System.getProperty("phone.udid", "192.168.1.109:5555");
+        options.setUdid(phoneUdid);
+
+        System.out.println("🔌 Connexion à l'appareil : " + phoneUdid);
 
         options.setNoReset(false);
         options.setFullReset(false);
