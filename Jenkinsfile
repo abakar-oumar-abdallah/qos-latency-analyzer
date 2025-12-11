@@ -59,7 +59,7 @@ pipeline {
                 script {
                     sh '''
                         echo "Connexion au téléphone ${PHONE_IP}..."
-                        adb connect ${PHONE_IP}:5555 || true
+                        adb connect ${PHONE_IP}:32773 || true
                         sleep 3
 
                         echo ""
