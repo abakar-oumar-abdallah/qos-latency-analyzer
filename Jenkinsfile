@@ -10,7 +10,6 @@ pipeline {
         PATH = "${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${env.PATH}"
         PHONE_IP = "192.168.1.109"
         APPIUM_PORT = "4723"
-        PHONE_PORT = ""  // Sera détecté automatiquement
     }
 
     stages {
@@ -58,40 +57,32 @@ pipeline {
                 echo '📱 Connexion et préparation du téléphone'
 
                 script {
-                    // Détecter automatiquement le port ADB
-                    def detectedPort = sh(
-                        script: '''
-                            # Essayer de se connecter avec différents ports
-                            for PORT in 5555 32773 36505 5557 37717; do
-                                echo "Tentative ${PHONE_IP}:${PORT}..." >&2
-                                adb connect ${PHONE_IP}:${PORT} >/dev/null 2>&1
-                                sleep 1
-                            done
-
-                            # Récupérer le port effectivement connecté
-                            CONNECTED=$(adb devices | grep ${PHONE_IP} | grep device | awk '{print $1}')
-                            if [ ! -z "$CONNECTED" ]; then
-                                echo "$CONNECTED" | cut -d':' -f2
-                            else
-                                echo "5555"
-                            fi
-                        ''',
-                        returnStdout: true
-                    ).trim()
-
-                    env.PHONE_PORT = detectedPort
-                    echo "✅ Port détecté : ${env.PHONE_PORT}"
-
                     sh '''
                         echo "=========================================="
-                        echo "CONNEXION AU TÉLÉPHONE"
+                        echo "CONNEXION AU TÉLÉPHONE (AUTO-DÉTECTION)"
                         echo "=========================================="
-                        echo "IP : ${PHONE_IP}"
-                        echo "Port : ${PHONE_PORT}"
 
-                        # Assurer la connexion sur le bon port
-                        adb connect ${PHONE_IP}:${PHONE_PORT}
-                        sleep 3
+                        # Essayer plusieurs ports courants
+                        DETECTED_PORT=""
+                        for PORT in 32773 36505 5555 5557 37717; do
+                            echo "Tentative ${PHONE_IP}:${PORT}..."
+                            adb connect ${PHONE_IP}:${PORT} >/dev/null 2>&1
+                            sleep 1
+                        done
+
+                        # Récupérer le port effectivement connecté
+                        CONNECTED=$(adb devices | grep ${PHONE_IP} | grep device | awk '{print $1}')
+                        if [ ! -z "$CONNECTED" ]; then
+                            DETECTED_PORT=$(echo "$CONNECTED" | cut -d':' -f2)
+                            echo "✅ Port détecté : ${DETECTED_PORT}"
+                        else
+                            echo "❌ Aucun appareil détecté"
+                            exit 1
+                        fi
+
+                        # Sauvegarder le port dans un fichier pour l'utiliser plus tard
+                        echo "${DETECTED_PORT}" > /tmp/phone_port.txt
+                        echo "${PHONE_IP}:${DETECTED_PORT}" > /tmp/phone_udid.txt
 
                         echo ""
                         echo "=== APPAREILS CONNECTÉS ==="
@@ -121,33 +112,27 @@ pipeline {
 
                         echo ""
                         echo "=== ATTRIBUTION DES PERMISSIONS SYSTÈME ==="
-                        echo "Attribution WRITE_SETTINGS..."
-                        adb shell pm grant com.qos.latency.analyzer android.permission.WRITE_SETTINGS || echo "   Déjà accordée"
 
                         echo "Attribution WRITE_SECURE_SETTINGS..."
-                        adb shell pm grant com.qos.latency.analyzer android.permission.WRITE_SECURE_SETTINGS || echo "   Déjà accordée"
+                        adb shell pm grant com.qos.latency.analyzer android.permission.WRITE_SECURE_SETTINGS || echo "   Échec (non bloquant)"
 
                         echo "Attribution ACCESS_FINE_LOCATION..."
-                        adb shell pm grant com.qos.latency.analyzer android.permission.ACCESS_FINE_LOCATION || echo "   Déjà accordée"
+                        adb shell pm grant com.qos.latency.analyzer android.permission.ACCESS_FINE_LOCATION || echo "   Échec (non bloquant)"
 
                         echo "Attribution ACCESS_COARSE_LOCATION..."
-                        adb shell pm grant com.qos.latency.analyzer android.permission.ACCESS_COARSE_LOCATION || echo "   Déjà accordée"
-
-                        echo ""
-                        echo "=== VÉRIFICATION DES PERMISSIONS ==="
-                        adb shell dumpsys package com.qos.latency.analyzer | grep "permission granted=true" || echo "Vérification terminée"
+                        adb shell pm grant com.qos.latency.analyzer android.permission.ACCESS_COARSE_LOCATION || echo "   Échec (non bloquant)"
 
                         echo ""
                         echo "=== RÉINITIALISATION DES PARAMÈTRES SYSTÈME ==="
                         echo "Réinitialisation batterie..."
-                        adb shell dumpsys battery reset
+                        adb shell dumpsys battery reset || echo "   Échec (non bloquant)"
 
                         echo "Désactivation mode avion..."
-                        adb shell settings put global airplane_mode_on 0
-                        adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state false
+                        adb shell settings put global airplane_mode_on 0 || echo "   Échec (non bloquant)"
 
                         echo ""
                         echo "✅ Préparation terminée avec succès"
+                        echo "Port utilisé : ${DETECTED_PORT}"
                     '''
                 }
             }
@@ -201,12 +186,15 @@ pipeline {
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                         sh '''
+                            # Lire le UDID depuis le fichier
+                            PHONE_UDID=$(cat /tmp/phone_udid.txt)
+                            echo "📱 Utilisation de l'appareil : ${PHONE_UDID}"
+
                             echo "Exécution des tests de mode éco batterie..."
-                            echo "Port ADB utilisé : ${PHONE_PORT}"
 
                             ./gradlew appiumTest \
                                 -Dappium.server=http://127.0.0.1:${APPIUM_PORT} \
-                                -Dphone.udid=${PHONE_IP}:${PHONE_PORT} \
+                                -Dphone.udid=${PHONE_UDID} \
                                 -Pandroid.testInstrumentationRunnerArguments.class=com.qos.latency.analyzer.appium.BatteryEcoModeTest \
                                 --stacktrace \
                                 --info
