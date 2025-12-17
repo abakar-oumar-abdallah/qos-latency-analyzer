@@ -7,6 +7,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests Appium pour l'application QoS Latency Analyzer
+ *
+ * Ce fichier contient les tests principaux de l'application.
+ * Tous les tests héritent de BaseAppiumTest qui fournit les méthodes utilitaires.
+ *
+ * VERSION CORRIGÉE - Utilise waitForFilesLoaded() qui est maintenant définie dans BaseAppiumTest
  */
 public class QoSLatencyAppiumTest extends BaseAppiumTest {
 

@@ -54,6 +54,42 @@ public class BaseAppiumTest {
         }
     }
 
+    /**
+     * Attend que les fichiers soient chargés depuis les assets
+     * Cette méthode attend qu'au moins un fichier soit visible dans la liste
+     * ou que l'indicateur de chargement disparaisse
+     *
+     * OPTION 1 : ATTENTE INTELLIGENTE
+     * - Détecte automatiquement la présence des fichiers
+     * - Utilise un fallback si les fichiers ne sont pas trouvés
+     * - Performance optimale avec attente dynamique
+     */
+    protected void waitForFilesLoaded() {
+        try {
+            // Option 1 : Attendre qu'au moins un élément de fichier soit visible
+            // On cherche n'importe quel TextView qui pourrait être un nom de fichier
+            By anyFileLocator = By.xpath("//android.widget.TextView[@text='test_data' or @text='packets_data' or @text='network_data']");
+
+            longWait.until(ExpectedConditions.or(
+                    ExpectedConditions.visibilityOfElementLocated(anyFileLocator),
+                    ExpectedConditions.visibilityOfElementLocated(By.xpath("//android.widget.TextView[contains(@text, 'data')]"))
+            ));
+
+            // Petite pause supplémentaire pour s'assurer que tout est stable
+            Thread.sleep(500);
+
+        } catch (Exception e) {
+            // Si on ne trouve pas de fichier spécifique, on attend simplement un délai fixe
+            // (comme dans CompleteFlowAppiumTest)
+            System.out.println("⚠️ Aucun fichier trouvé avec les locators spécifiques, attente de 5 secondes...");
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
     protected WebElement waitForElementWithScroll(By locator) {
         try {
             return wait.until(ExpectedConditions.visibilityOfElementLocated(locator));

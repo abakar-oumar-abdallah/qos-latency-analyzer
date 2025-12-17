@@ -3,6 +3,14 @@ package com.qos.latency.analyzer.appium;
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.By;
 
+/**
+ * Test de flux complet avec visualisation
+ *
+ * Ce test exécute un scénario complet de l'application avec des pauses
+ * pour permettre l'observation visuelle de chaque phase.
+ *
+ * Durée totale : environ 1 minute 45 secondes
+ */
 public class CompleteFlowAppiumTest extends BaseAppiumTest {
 
     // ==================== CONSTANTES DE TEMPO ====================
