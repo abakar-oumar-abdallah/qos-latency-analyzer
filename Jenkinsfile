@@ -9,14 +9,15 @@ pipeline {
         ANDROID_HOME = '/opt/android-sdk'
         PATH = "${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${env.PATH}"
         PHONE_IP = "192.168.1.109"
+        ADB_PORT = "5555"  // Port TCP/IP standard après pairing wireless
         APPIUM_PORT = "4723"
     }
 
     stages {
 
-        stage('Informations Environement') {
+        stage('Informations Environnement') {
             steps {
-                echo 'Vérification de l/environment'
+                echo 'Vérification de l\'environnement'
                 sh '''
                     echo "Java version"
                     java -version
@@ -26,6 +27,9 @@ pipeline {
                     echo ""
                     echo "Gradle wrapper"
                     ls -la gradlew
+                    echo ""
+                    echo "ADB version"
+                    adb version
                 '''
             }
         }
@@ -52,33 +56,65 @@ pipeline {
             }
         }
 
-        stage('Préparation Device pour Appium') {
+        stage('Connexion ADB Wireless') {
             steps {
-                echo '📱 Connexion au téléphone pour Appium'
+                echo '📱 Connexion au téléphone via ADB Wireless'
 
                 script {
                     sh '''
-                        echo "Connexion au téléphone ${PHONE_IP}..."
-                        adb connect ${PHONE_IP}:32773 || true
+                        echo "=== CONNEXION ADB WIRELESS ==="
+                        echo "Arrêt du serveur ADB..."
+                        adb kill-server || true
+                        sleep 2
+
+                        echo "Démarrage du serveur ADB..."
+                        adb start-server
+                        sleep 2
+
+                        echo ""
+                        echo "Tentative de connexion à ${PHONE_IP}:${ADB_PORT}..."
+                        adb connect ${PHONE_IP}:${ADB_PORT} || true
                         sleep 3
 
                         echo ""
                         echo "=== APPAREILS CONNECTÉS ==="
                         adb devices -l
 
+                        # Vérification qu'un appareil est bien connecté
                         DEVICE_COUNT=$(adb devices | grep -w "device" | wc -l)
                         if [ $DEVICE_COUNT -eq 0 ]; then
-                            echo "ERREUR: Aucun appareil détecté"
+                            echo ""
+                            echo "❌ ERREUR: Aucun appareil détecté"
+                            echo ""
+                            echo "DIAGNOSTIC :"
+                            echo "1. Vérifiez que le débogage sans fil est activé sur l'appareil"
+                            echo "2. Vérifiez que l'appareil est sur le même réseau (${PHONE_IP})"
+                            echo "3. Si nécessaire, effectuez le pairing manuel avec:"
+                            echo "   adb pair ${PHONE_IP}:<PORT_PAIRING>"
+                            echo "4. Puis reconnectez avec:"
+                            echo "   adb connect ${PHONE_IP}:${ADB_PORT}"
                             exit 1
                         fi
-                        echo "${DEVICE_COUNT} appareil(s) connecté(s)"
 
                         echo ""
+                        echo "✅ ${DEVICE_COUNT} appareil(s) connecté(s)"
+                    '''
+                }
+            }
+        }
+
+        stage('Préparation Device pour Appium') {
+            steps {
+                echo '📱 Installation de l\'application et préparation'
+
+                script {
+                    sh '''
                         echo "=== INFORMATIONS APPAREIL ==="
                         echo "Modèle     : $(adb shell getprop ro.product.model)"
                         echo "Fabricant  : $(adb shell getprop ro.product.manufacturer)"
                         echo "Android    : $(adb shell getprop ro.build.version.release)"
                         echo "API Level  : $(adb shell getprop ro.build.version.sdk)"
+                        echo "UDID       : ${PHONE_IP}:${ADB_PORT}"
 
                         echo ""
                         echo "Désinstallation de l'ancienne version..."
@@ -97,8 +133,7 @@ pipeline {
 
         stage('Démarrage Appium Server') {
             steps {
-
-                echo 'Démarrage du serveur Appium'
+                echo '🚀 Démarrage du serveur Appium'
 
                 script {
                     sh '''
@@ -107,18 +142,28 @@ pipeline {
                         sleep 2
 
                         echo "Démarrage d'Appium sur le port ${APPIUM_PORT}..."
-                        nohup appium server \
+                        nohup appium \
                             --address 127.0.0.1 \
                             --port ${APPIUM_PORT} \
                             --log /tmp/appium.log \
                             --log-level info \
-                            --use-drivers uiautomator2 \
-                            --relaxed-security &
+                            --relaxed-security > /tmp/appium-startup.log 2>&1 &
 
-                        echo "Attente du démarrage d'Appium..."
+                        echo "Attente du démarrage d'Appium (10 secondes)..."
                         sleep 10
 
-                        echo "Appium démarré"
+                        echo ""
+                        echo "=== VÉRIFICATION DU SERVEUR APPIUM ==="
+                        if curl -s http://127.0.0.1:${APPIUM_PORT}/status > /dev/null; then
+                            echo "✅ Serveur Appium démarré et accessible"
+                            curl -s http://127.0.0.1:${APPIUM_PORT}/status | head -5
+                        else
+                            echo "❌ ERREUR: Le serveur Appium ne répond pas"
+                            echo ""
+                            echo "=== LOGS APPIUM ==="
+                            cat /tmp/appium.log 2>/dev/null || echo "Pas de logs disponibles"
+                            exit 1
+                        fi
 
                         echo ""
                         echo "=== LOGS APPIUM (10 premières lignes) ==="
@@ -130,11 +175,49 @@ pipeline {
 
         stage('Tests Appium') {
             steps {
-                echo '📱 Test Appium avec visualisation (105 secondes)'
+                echo '🧪 Exécution des tests Appium'
+
+                script {
+                    // On exécute tous les tests Appium
+                    catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                        sh '''
+                            echo "=== EXÉCUTION DES TESTS APPIUM ==="
+                            echo "Serveur Appium : http://127.0.0.1:${APPIUM_PORT}"
+                            echo "Device UDID    : ${PHONE_IP}:${ADB_PORT}"
+                            echo ""
+
+                            # Vérifier à nouveau la connexion ADB avant les tests
+                            echo "Vérification de la connexion ADB..."
+                            adb devices | grep "${PHONE_IP}:${ADB_PORT}.*device" || {
+                                echo "⚠️  Reconnexion ADB nécessaire..."
+                                adb connect ${PHONE_IP}:${ADB_PORT}
+                                sleep 3
+                            }
+
+                            echo ""
+                            echo "Lancement des tests..."
+                            ./gradlew appiumTest \
+                                -Dappium.server=http://127.0.0.1:${APPIUM_PORT} \
+                                --stacktrace \
+                                --info
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Test Complet avec Visualisation') {
+            steps {
+                echo '📱 Test Appium avec visualisation complète (~2 minutes)'
 
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                         sh '''
+                            echo "=== TEST COMPLET AVEC VISUALISATION ==="
+                            echo "Ce test inclut 10 phases avec animation de 60 secondes"
+                            echo "Durée estimée : ~1 minute 45 secondes"
+                            echo ""
+
                             ./gradlew appiumTest \
                                 -Dappium.server=http://127.0.0.1:${APPIUM_PORT} \
                                 -Pandroid.testInstrumentationRunnerArguments.class=com.qos.latency.analyzer.appium.CompleteFlowAppiumTest#testCompleteExecutionFlowWithVisualization \
@@ -148,25 +231,25 @@ pipeline {
 
         stage('Arrêt Appium Server') {
             steps {
-
-                echo 'Arrêt du serveur Appium'
+                echo '🛑 Arrêt du serveur Appium'
 
                 sh '''
                     echo "Arrêt d'Appium..."
                     pkill -f appium || true
                     sleep 2
-                    echo "Appium arrêté"
+                    echo "✅ Appium arrêté"
                 '''
             }
         }
 
-        stage('Tests Instrumentés') {
+        stage('Tests Instrumentés Espresso') {
             steps {
                 echo '📱 Test Espresso avec visualisation (105 secondes)'
 
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                         sh '''
+                            echo "=== TESTS INSTRUMENTÉS ESPRESSO ==="
                             ./gradlew connectedAndroidTest \
                                 -Pandroid.testInstrumentationRunnerArguments.class=com.qos.latency.analyzer.CompleteFlowTest#testCompleteExecutionFlowWithVisualization \
                                 --stacktrace \
@@ -179,14 +262,14 @@ pipeline {
 
         stage('Analyse Lint') {
             steps {
-                echo 'Analyse Lint Android'
+                echo '🔍 Analyse Lint Android'
                 sh './gradlew lint'
             }
         }
 
         stage('Archive APK') {
             steps {
-                echo 'Archivage de APK'
+                echo '📦 Archivage de APK'
                 archiveArtifacts artifacts: '**/build/outputs/apk/debug/*.apk', allowEmptyArchive: false, fingerprint: true
             }
         }
@@ -195,7 +278,7 @@ pipeline {
 
     post {
         success {
-            echo 'Build réussi'
+            echo '✅ Build réussi'
             echo 'APK disponible dans les artifacts'
             echo 'Nom du fichier: app-debug.apk'
 
@@ -208,12 +291,33 @@ pipeline {
         }
 
         failure {
-            echo 'La pipeline a échoué'
+            echo '❌ La pipeline a échoué'
             echo 'Consultez les logs ci-dessus pour identifier les erreurs'
+
+            script {
+                sh '''
+                    echo ""
+                    echo "=== DIAGNOSTIC ==="
+                    echo "État ADB:"
+                    adb devices || true
+
+                    echo ""
+                    echo "Logs Appium (20 dernières lignes):"
+                    tail -n 20 /tmp/appium.log 2>/dev/null || echo "Pas de logs Appium"
+                '''
+            }
         }
 
         always {
-            echo 'Nettoyage final'
+            echo '🧹 Nettoyage final'
+
+            script {
+                // Arrêter Appium si encore actif
+                sh 'pkill -f appium || true'
+
+                // Optionnel : déconnecter ADB
+                // sh 'adb disconnect ${PHONE_IP}:${ADB_PORT} || true'
+            }
 
             // Archiver les rapports de tests
             junit allowEmptyResults: true, testResults: '**/build/test-results/**/*.xml'
@@ -226,6 +330,16 @@ pipeline {
                 reportDir: 'app/build/reports',
                 reportFiles: 'lint-results-debug.html',
                 reportName: 'Lint Report'
+            ])
+
+            // Archiver les rapports de tests Appium
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'app/build/reports/tests/appiumTest',
+                reportFiles: 'index.html',
+                reportName: 'Appium Test Report'
             ])
         }
     }
