@@ -9,49 +9,124 @@ pipeline {
         ANDROID_HOME = '/opt/android-sdk'
         PATH = "${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${env.PATH}"
         PHONE_IP = "192.168.1.109"
-        ADB_PORT = "5555"  // Port TCP/IP standard après pairing wireless
+        ADB_PORT = "5555"
         APPIUM_PORT = "4723"
     }
 
     stages {
 
+        stage('Nettoyage Préliminaire') {
+            steps {
+                echo '🧹 Nettoyage préliminaire - Arrêt des processus actifs'
+
+                script {
+                    sh '''
+                        echo "═══════════════════════════════════════════════════════════════"
+                        echo "  NETTOYAGE PRÉLIMINAIRE"
+                        echo "═══════════════════════════════════════════════════════════════"
+
+                        echo ""
+                        echo "Arrêt de tous les processus Appium..."
+                        pkill -f appium || echo "   ✓ Aucun processus Appium à arrêter"
+
+                        echo ""
+                        echo "Arrêt du daemon Gradle..."
+                        ./gradlew --stop || echo "   ✓ Aucun daemon Gradle actif"
+
+                        echo ""
+                        echo "Attente de la libération des fichiers..."
+                        sleep 3
+
+                        echo ""
+                        echo "✅ Nettoyage préliminaire terminé"
+                        echo "═══════════════════════════════════════════════════════════════"
+                    '''
+                }
+            }
+        }
+
         stage('Informations Environnement') {
             steps {
-                echo 'Vérification de l\'environnement'
+                echo '📋 Vérification de l\'environnement'
                 sh '''
-                    echo "Java version"
+                    echo "═══════════════════════════════════════════════════════════════"
+                    echo "  INFORMATIONS ENVIRONNEMENT"
+                    echo "═══════════════════════════════════════════════════════════════"
+
+                    echo ""
+                    echo "--- Java Version ---"
                     java -version
+
                     echo ""
-                    echo "Android SDK Location"
-                    echo ${ANDROID_HOME}
+                    echo "--- Android SDK ---"
+                    echo "Location: ${ANDROID_HOME}"
+
                     echo ""
-                    echo "Gradle wrapper"
+                    echo "--- Gradle ---"
                     ls -la gradlew
+
                     echo ""
-                    echo "ADB version"
+                    echo "--- ADB ---"
                     adb version
+
+                    echo ""
+                    echo "═══════════════════════════════════════════════════════════════"
                 '''
             }
         }
 
         stage('Clean') {
             steps {
-                echo 'Nettoyage du projet'
-                sh 'chmod +x gradlew'
-                sh './gradlew clean'
+                echo '🧹 Nettoyage du projet Gradle'
+
+                script {
+                    sh 'chmod +x gradlew'
+
+                    // Tentative de clean normal
+                    def cleanResult = sh(script: './gradlew clean --no-daemon', returnStatus: true)
+
+                    if (cleanResult != 0) {
+                        echo "⚠️  Clean standard échoué, nettoyage forcé en cours..."
+                        sh '''
+                            echo ""
+                            echo "Arrêt des processus bloquants..."
+                            pkill -f gradle || true
+                            pkill -f appium || true
+                            sleep 2
+
+                            echo ""
+                            echo "Suppression manuelle des répertoires build..."
+                            rm -rf app/build || true
+                            rm -rf build || true
+
+                            echo ""
+                            echo "✅ Nettoyage forcé terminé"
+                        '''
+                    } else {
+                        echo "✅ Clean standard réussi"
+                    }
+                }
             }
         }
 
-        stage('Build application android') {
+        stage('Build Application Android') {
             steps {
-                echo 'Compilation de APK Debug'
+                echo '🔨 Compilation de l\'APK Debug'
                 sh './gradlew assembleDebug'
+
+                script {
+                    sh '''
+                        echo ""
+                        echo "✅ APK créé avec succès:"
+                        ls -lh app/build/outputs/apk/debug/app-debug.apk
+                    '''
+                }
             }
         }
 
         stage('Tests Unitaires') {
             steps {
-                echo 'Exécution des tests unitaires'
+                echo '🧪 Exécution des tests unitaires'
                 sh './gradlew test --stacktrace'
             }
         }
@@ -62,11 +137,16 @@ pipeline {
 
                 script {
                     sh '''
-                        echo "=== CONNEXION ADB WIRELESS ==="
+                        echo "═══════════════════════════════════════════════════════════════"
+                        echo "  CONNEXION ADB WIRELESS"
+                        echo "═══════════════════════════════════════════════════════════════"
+
+                        echo ""
                         echo "Arrêt du serveur ADB..."
                         adb kill-server || true
                         sleep 2
 
+                        echo ""
                         echo "Démarrage du serveur ADB..."
                         adb start-server
                         sleep 2
@@ -80,24 +160,26 @@ pipeline {
                         echo "=== APPAREILS CONNECTÉS ==="
                         adb devices -l
 
+                        echo ""
                         # Vérification qu'un appareil est bien connecté
                         DEVICE_COUNT=$(adb devices | grep -w "device" | wc -l)
                         if [ $DEVICE_COUNT -eq 0 ]; then
-                            echo ""
                             echo "❌ ERREUR: Aucun appareil détecté"
                             echo ""
-                            echo "DIAGNOSTIC :"
-                            echo "1. Vérifiez que le débogage sans fil est activé sur l'appareil"
-                            echo "2. Vérifiez que l'appareil est sur le même réseau (${PHONE_IP})"
-                            echo "3. Si nécessaire, effectuez le pairing manuel avec:"
+                            echo "DIAGNOSTIC:"
+                            echo "1. Vérifiez que le débogage sans fil est activé"
+                            echo "2. Vérifiez que l'appareil est sur le réseau: ${PHONE_IP}"
+                            echo "3. Si nécessaire, effectuez le pairing avec:"
                             echo "   adb pair ${PHONE_IP}:<PORT_PAIRING>"
                             echo "4. Puis reconnectez avec:"
                             echo "   adb connect ${PHONE_IP}:${ADB_PORT}"
+                            echo ""
+                            echo "═══════════════════════════════════════════════════════════════"
                             exit 1
                         fi
 
-                        echo ""
                         echo "✅ ${DEVICE_COUNT} appareil(s) connecté(s)"
+                        echo "═══════════════════════════════════════════════════════════════"
                     '''
                 }
             }
@@ -105,10 +187,15 @@ pipeline {
 
         stage('Préparation Device pour Appium') {
             steps {
-                echo '📱 Installation de l\'application et préparation'
+                echo '📱 Installation de l\'application et préparation du device'
 
                 script {
                     sh '''
+                        echo "═══════════════════════════════════════════════════════════════"
+                        echo "  PRÉPARATION DEVICE"
+                        echo "═══════════════════════════════════════════════════════════════"
+
+                        echo ""
                         echo "=== INFORMATIONS APPAREIL ==="
                         echo "Modèle     : $(adb shell getprop ro.product.model)"
                         echo "Fabricant  : $(adb shell getprop ro.product.manufacturer)"
@@ -118,14 +205,16 @@ pipeline {
 
                         echo ""
                         echo "Désinstallation de l'ancienne version..."
-                        adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   Pas d'ancienne version (OK)"
+                        adb uninstall com.qos.latency.analyzer 2>/dev/null || echo "   ✓ Pas d'ancienne version"
 
                         echo ""
                         echo "=== INSTALLATION DE L'APP ==="
                         adb install -r app/build/outputs/apk/debug/app-debug.apk
 
                         echo ""
-                        echo "✅ Préparation terminée - L'app lira les fichiers depuis les assets"
+                        echo "✅ Application installée avec succès"
+                        echo "   L'app lira les fichiers depuis les assets"
+                        echo "═══════════════════════════════════════════════════════════════"
                     '''
                 }
             }
@@ -137,10 +226,16 @@ pipeline {
 
                 script {
                     sh '''
+                        echo "═══════════════════════════════════════════════════════════════"
+                        echo "  DÉMARRAGE SERVEUR APPIUM"
+                        echo "═══════════════════════════════════════════════════════════════"
+
+                        echo ""
                         echo "Arrêt de tout processus Appium existant..."
-                        pkill -f appium || true
+                        pkill -f appium || echo "   ✓ Aucun processus Appium actif"
                         sleep 2
 
+                        echo ""
                         echo "Démarrage d'Appium sur le port ${APPIUM_PORT}..."
                         nohup appium \
                             --address 127.0.0.1 \
@@ -154,20 +249,30 @@ pipeline {
 
                         echo ""
                         echo "=== VÉRIFICATION DU SERVEUR APPIUM ==="
-                        if curl -s http://127.0.0.1:${APPIUM_PORT}/status > /dev/null; then
+                        if curl -s http://127.0.0.1:${APPIUM_PORT}/status > /dev/null 2>&1; then
                             echo "✅ Serveur Appium démarré et accessible"
+                            echo ""
+                            echo "Status:"
                             curl -s http://127.0.0.1:${APPIUM_PORT}/status | head -5
                         else
                             echo "❌ ERREUR: Le serveur Appium ne répond pas"
                             echo ""
+                            echo "=== LOGS APPIUM STARTUP ==="
+                            cat /tmp/appium-startup.log 2>/dev/null || echo "Pas de logs startup"
+                            echo ""
                             echo "=== LOGS APPIUM ==="
-                            cat /tmp/appium.log 2>/dev/null || echo "Pas de logs disponibles"
+                            cat /tmp/appium.log 2>/dev/null || echo "Pas de logs Appium"
+                            echo ""
+                            echo "═══════════════════════════════════════════════════════════════"
                             exit 1
                         fi
 
                         echo ""
                         echo "=== LOGS APPIUM (10 premières lignes) ==="
                         head -n 10 /tmp/appium.log || echo "Pas encore de logs"
+
+                        echo ""
+                        echo "═══════════════════════════════════════════════════════════════"
                     '''
                 }
             }
@@ -175,31 +280,42 @@ pipeline {
 
         stage('Tests Appium') {
             steps {
-                echo '🧪 Exécution des tests Appium'
+                echo '🧪 Exécution de tous les tests Appium'
 
                 script {
-                    // On exécute tous les tests Appium
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                         sh '''
-                            echo "=== EXÉCUTION DES TESTS APPIUM ==="
-                            echo "Serveur Appium : http://127.0.0.1:${APPIUM_PORT}"
-                            echo "Device UDID    : ${PHONE_IP}:${ADB_PORT}"
+                            echo "═══════════════════════════════════════════════════════════════"
+                            echo "  TESTS APPIUM"
+                            echo "═══════════════════════════════════════════════════════════════"
+
+                            echo ""
+                            echo "Configuration:"
+                            echo "  Serveur Appium : http://127.0.0.1:${APPIUM_PORT}"
+                            echo "  Device UDID    : ${PHONE_IP}:${ADB_PORT}"
                             echo ""
 
-                            # Vérifier à nouveau la connexion ADB avant les tests
+                            # Vérifier la connexion ADB avant les tests
                             echo "Vérification de la connexion ADB..."
-                            adb devices | grep "${PHONE_IP}:${ADB_PORT}.*device" || {
+                            if ! adb devices | grep -q "${PHONE_IP}:${ADB_PORT}.*device"; then
                                 echo "⚠️  Reconnexion ADB nécessaire..."
                                 adb connect ${PHONE_IP}:${ADB_PORT}
                                 sleep 3
-                            }
+                            else
+                                echo "✓ Device connecté"
+                            fi
 
                             echo ""
-                            echo "Lancement des tests..."
+                            echo "Lancement des tests Appium (6 tests)..."
+                            echo ""
+
                             ./gradlew appiumTest \
                                 -Dappium.server=http://127.0.0.1:${APPIUM_PORT} \
                                 --stacktrace \
                                 --info
+
+                            echo ""
+                            echo "═══════════════════════════════════════════════════════════════"
                         '''
                     }
                 }
@@ -213,9 +329,17 @@ pipeline {
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                         sh '''
-                            echo "=== TEST COMPLET AVEC VISUALISATION ==="
-                            echo "Ce test inclut 10 phases avec animation de 60 secondes"
-                            echo "Durée estimée : ~1 minute 45 secondes"
+                            echo "═══════════════════════════════════════════════════════════════"
+                            echo "  TEST COMPLET AVEC VISUALISATION"
+                            echo "═══════════════════════════════════════════════════════════════"
+
+                            echo ""
+                            echo "Ce test inclut:"
+                            echo "  • 10 phases de test"
+                            echo "  • Animation de 60 secondes"
+                            echo "  • Vérifications toutes les 10 secondes"
+                            echo ""
+                            echo "Durée estimée: ~1 minute 45 secondes"
                             echo ""
 
                             ./gradlew appiumTest \
@@ -223,6 +347,9 @@ pipeline {
                                 -Pandroid.testInstrumentationRunnerArguments.class=com.qos.latency.analyzer.appium.CompleteFlowAppiumTest#testCompleteExecutionFlowWithVisualization \
                                 --stacktrace \
                                 --info
+
+                            echo ""
+                            echo "═══════════════════════════════════════════════════════════════"
                         '''
                     }
                 }
@@ -235,7 +362,7 @@ pipeline {
 
                 sh '''
                     echo "Arrêt d'Appium..."
-                    pkill -f appium || true
+                    pkill -f appium || echo "   ✓ Aucun processus Appium à arrêter"
                     sleep 2
                     echo "✅ Appium arrêté"
                 '''
@@ -244,16 +371,23 @@ pipeline {
 
         stage('Tests Instrumentés Espresso') {
             steps {
-                echo '📱 Test Espresso avec visualisation (105 secondes)'
+                echo '📱 Tests instrumentés Espresso avec visualisation'
 
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                         sh '''
-                            echo "=== TESTS INSTRUMENTÉS ESPRESSO ==="
+                            echo "═══════════════════════════════════════════════════════════════"
+                            echo "  TESTS INSTRUMENTÉS ESPRESSO"
+                            echo "═══════════════════════════════════════════════════════════════"
+
+                            echo ""
                             ./gradlew connectedAndroidTest \
                                 -Pandroid.testInstrumentationRunnerArguments.class=com.qos.latency.analyzer.CompleteFlowTest#testCompleteExecutionFlowWithVisualization \
                                 --stacktrace \
                                 --info
+
+                            echo ""
+                            echo "═══════════════════════════════════════════════════════════════"
                         '''
                     }
                 }
@@ -269,8 +403,17 @@ pipeline {
 
         stage('Archive APK') {
             steps {
-                echo '📦 Archivage de APK'
+                echo '📦 Archivage de l\'APK'
                 archiveArtifacts artifacts: '**/build/outputs/apk/debug/*.apk', allowEmptyArchive: false, fingerprint: true
+
+                script {
+                    sh '''
+                        echo ""
+                        echo "✅ APK archivé:"
+                        echo "   Nom: app-debug.apk"
+                        echo "   Taille: $(du -h app/build/outputs/apk/debug/app-debug.apk | cut -f1)"
+                    '''
+                }
             }
         }
 
@@ -278,42 +421,70 @@ pipeline {
 
     post {
         success {
-            echo '✅ Build réussi'
-            echo 'APK disponible dans les artifacts'
-            echo 'Nom du fichier: app-debug.apk'
+            echo ''
+            echo '═══════════════════════════════════════════════════════════════'
+            echo '  ✅ BUILD RÉUSSI'
+            echo '═══════════════════════════════════════════════════════════════'
+            echo ''
+            echo '📦 APK disponible dans les artifacts'
+            echo '   Nom du fichier: app-debug.apk'
+            echo ''
 
             script {
-                def testResults = junit testResults: '**/build/test-results/**/*.xml'
-                echo "Tests exécutés : ${testResults.totalCount}"
-                echo "Tests réussis : ${testResults.passCount}"
-                echo "Tests échoués : ${testResults.failCount}"
+                try {
+                    def testResults = junit testResults: '**/build/test-results/**/*.xml'
+                    echo "📊 Résultats des tests:"
+                    echo "   Tests exécutés : ${testResults.totalCount}"
+                    echo "   Tests réussis  : ${testResults.passCount}"
+                    echo "   Tests échoués  : ${testResults.failCount}"
+                } catch (Exception e) {
+                    echo "⚠️  Impossible de charger les résultats des tests"
+                }
             }
+
+            echo ''
+            echo '═══════════════════════════════════════════════════════════════'
         }
 
         failure {
-            echo '❌ La pipeline a échoué'
+            echo ''
+            echo '═══════════════════════════════════════════════════════════════'
+            echo '  ❌ LA PIPELINE A ÉCHOUÉ'
+            echo '═══════════════════════════════════════════════════════════════'
+            echo ''
             echo 'Consultez les logs ci-dessus pour identifier les erreurs'
+            echo ''
 
             script {
                 sh '''
-                    echo ""
                     echo "=== DIAGNOSTIC ==="
+                    echo ""
                     echo "État ADB:"
-                    adb devices || true
+                    adb devices || echo "   ⚠️  ADB non disponible"
+
+                    echo ""
+                    echo "Processus actifs:"
+                    ps aux | grep -E "appium|gradle" | grep -v grep || echo "   ✓ Aucun processus suspect"
 
                     echo ""
                     echo "Logs Appium (20 dernières lignes):"
-                    tail -n 20 /tmp/appium.log 2>/dev/null || echo "Pas de logs Appium"
+                    tail -n 20 /tmp/appium.log 2>/dev/null || echo "   ⚠️  Pas de logs Appium"
+
+                    echo ""
+                    echo "═══════════════════════════════════════════════════════════════"
                 '''
             }
         }
 
         always {
+            echo ''
             echo '🧹 Nettoyage final'
 
             script {
                 // Arrêter Appium si encore actif
-                sh 'pkill -f appium || true'
+                sh '''
+                    pkill -f appium || echo "   ✓ Appium déjà arrêté"
+                '''
 
                 // Optionnel : déconnecter ADB
                 // sh 'adb disconnect ${PHONE_IP}:${ADB_PORT} || true'
@@ -340,6 +511,16 @@ pipeline {
                 reportDir: 'app/build/reports/tests/appiumTest',
                 reportFiles: 'index.html',
                 reportName: 'Appium Test Report'
+            ])
+
+            // Archiver les rapports de tests instrumentés
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'app/build/reports/androidTests/connected',
+                reportFiles: 'index.html',
+                reportName: 'Espresso Test Report'
             ])
         }
     }
