@@ -17,28 +17,49 @@ pipeline {
 
         stage('Nettoyage Préliminaire') {
             steps {
-                echo '🧹 Nettoyage préliminaire - Arrêt des processus actifs'
+                echo '🧹 Nettoyage préliminaire COMPLET - Arrêt de tous les processus'
 
                 script {
                     sh '''
                         echo "═══════════════════════════════════════════════════════════════"
-                        echo "  NETTOYAGE PRÉLIMINAIRE"
+                        echo "  NETTOYAGE PRÉLIMINAIRE COMPLET"
                         echo "═══════════════════════════════════════════════════════════════"
 
                         echo ""
-                        echo "Arrêt de tous les processus Appium..."
-                        pkill -f appium || echo "   ✓ Aucun processus Appium à arrêter"
+                        echo "1. Arrêt de tous les processus Appium..."
+                        pkill -9 -f appium || echo "   ✓ Aucun processus Appium"
 
                         echo ""
-                        echo "Arrêt du daemon Gradle..."
-                        ./gradlew --stop || echo "   ✓ Aucun daemon Gradle actif"
+                        echo "2. Arrêt de TOUS les processus Gradle..."
+                        pkill -9 -f gradle || echo "   ✓ Aucun processus Gradle"
+                        pkill -9 -f GradleDaemon || echo "   ✓ Aucun daemon Gradle"
 
                         echo ""
-                        echo "Attente de la libération des fichiers..."
-                        sleep 3
+                        echo "3. Arrêt du daemon Gradle proprement..."
+                        ./gradlew --stop || echo "   ✓ Daemon déjà arrêté"
 
                         echo ""
-                        echo "✅ Nettoyage préliminaire terminé"
+                        echo "4. Attente de la libération complète des fichiers..."
+                        sleep 5
+
+                        echo ""
+                        echo "5. Suppression forcée des répertoires build..."
+                        rm -rf app/build || echo "   ✓ app/build déjà supprimé"
+                        rm -rf build || echo "   ✓ build déjà supprimé"
+                        rm -rf .gradle || echo "   ✓ .gradle déjà supprimé"
+
+                        echo ""
+                        echo "6. Vérification qu'aucun processus ne bloque..."
+                        if ps aux | grep -E "gradle|GradleDaemon" | grep -v grep > /dev/null; then
+                            echo "   ⚠️  Processus Gradle détectés, second nettoyage..."
+                            pkill -9 -f gradle || true
+                            sleep 3
+                        else
+                            echo "   ✓ Aucun processus bloquant"
+                        fi
+
+                        echo ""
+                        echo "✅ Nettoyage préliminaire COMPLET terminé"
                         echo "═══════════════════════════════════════════════════════════════"
                     '''
                 }
@@ -82,8 +103,8 @@ pipeline {
                 script {
                     sh 'chmod +x gradlew'
 
-                    // Tentative de clean normal
-                    def cleanResult = sh(script: './gradlew clean --no-daemon', returnStatus: true)
+                    // Tentative de clean normal SANS daemon
+                    def cleanResult = sh(script: './gradlew clean --no-daemon --warning-mode=none', returnStatus: true)
 
                     if (cleanResult != 0) {
                         echo "⚠️  Clean standard échoué, nettoyage forcé en cours..."
@@ -112,7 +133,7 @@ pipeline {
         stage('Build Application Android') {
             steps {
                 echo '🔨 Compilation de l\'APK Debug'
-                sh './gradlew assembleDebug'
+                sh './gradlew assembleDebug --no-daemon --warning-mode=none'
 
                 script {
                     sh '''
@@ -127,7 +148,7 @@ pipeline {
         stage('Tests Unitaires') {
             steps {
                 echo '🧪 Exécution des tests unitaires'
-                sh './gradlew test --stacktrace'
+                sh './gradlew test --no-daemon --stacktrace'
             }
         }
 
@@ -310,6 +331,7 @@ pipeline {
                             echo ""
 
                             ./gradlew appiumTest \
+                                --no-daemon \
                                 -Dappium.server=http://127.0.0.1:${APPIUM_PORT} \
                                 --stacktrace \
                                 --info
@@ -343,6 +365,7 @@ pipeline {
                             echo ""
 
                             ./gradlew appiumTest \
+                                --no-daemon \
                                 -Dappium.server=http://127.0.0.1:${APPIUM_PORT} \
                                 -Pandroid.testInstrumentationRunnerArguments.class=com.qos.latency.analyzer.appium.CompleteFlowAppiumTest#testCompleteExecutionFlowWithVisualization \
                                 --stacktrace \
@@ -382,6 +405,7 @@ pipeline {
 
                             echo ""
                             ./gradlew connectedAndroidTest \
+                                --no-daemon \
                                 -Pandroid.testInstrumentationRunnerArguments.class=com.qos.latency.analyzer.CompleteFlowTest#testCompleteExecutionFlowWithVisualization \
                                 --stacktrace \
                                 --info
@@ -397,7 +421,7 @@ pipeline {
         stage('Analyse Lint') {
             steps {
                 echo '🔍 Analyse Lint Android'
-                sh './gradlew lint'
+                sh './gradlew lint --no-daemon'
             }
         }
 
