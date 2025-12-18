@@ -2,211 +2,200 @@ package com.qos.latency.analyzer.appium;
 
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.By;
+import org.openqa.selenium.WebElement;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Test de flux complet avec visualisation
- *
- * Ce test exécute un scénario complet de l'application avec des pauses
- * pour permettre l'observation visuelle de chaque phase.
- *
- * Durée totale : environ 1 minute 45 secondes
+ * Test de flux complet avec visualisation chronologique
+ * Vérifie l'intégralité du parcours utilisateur
  */
 public class CompleteFlowAppiumTest extends BaseAppiumTest {
 
-    // ==================== CONSTANTES DE TEMPO ====================
-    private static final int TEMPO_ECRAN_SELECTION = 5000;      // 5s - Observer l'interface
-    private static final int TEMPO_APP_CHARGEMENT = 5000;       // 5s - Attente chargement app
-    private static final int TEMPO_AVANT_CLIC = 5000;           // 5s - Préparer l'action
-    private static final int TEMPO_NAVIGATION = 2000;           // 2s - Navigation
-    private static final int TEMPO_GRAPHIQUE_INITIAL = 5000;    // 5s - Observer l'état vide
-    private static final int TEMPO_AVANT_LANCER = 5000;         // 5s - Observer le bouton "Lancer"
-    private static final int TEMPO_DEMARRAGE = 1000;            // 1s - Clic sur "Lancer"
-    private static final int TEMPO_PREMIERS_PAQUETS = 5000;     // 5s - Voir l'animation commencer
-    private static final int TEMPO_GRAPHIQUE_COMPLET = 20000;   // 20s - Analyser tous les points
-    private static final int TEMPO_COMPTE_A_REBOURS = 20000;    // 20s - Observer le compte à rebours
-    private static final int TEMPO_OBSERVATION_LONGUE = 20000;  // 20s - Examiner en détail
-    private static final int TEMPO_ETAT_FINAL = 10000;          // 10s - Voir le résultat final
-
-    // ==================== MÉTHODES UTILITAIRES ====================
-
-    /**
-     * Affiche un en-tête formaté dans les logs
-     */
-    private void printHeader(String title) {
-        System.out.println("\n======================================================================");
-        System.out.println("  " + title);
-        System.out.println("======================================================================");
-    }
-
-    /**
-     * Affiche une phase du test avec séparateur
-     */
-    private void printPhase(String phase) {
-        System.out.println("\n──────────────────────────────────────────────────────────────────────");
-        System.out.println("📍 " + phase);
-        System.out.println("──────────────────────────────────────────────────────────────────────");
-    }
-
-    /**
-     * Affiche un message de succès
-     */
-    private void printSuccess(String message) {
-        System.out.println("✅ " + message);
-    }
-
-    /**
-     * Affiche un message d'information
-     */
-    private void printInfo(String message) {
-        System.out.println("ℹ️  " + message);
-    }
-
-    /**
-     * Affiche un message de progression
-     */
-    private void printProgress(String message) {
-        System.out.println("⏩ " + message);
-    }
-
-    /**
-     * Pause avec affichage
-     */
-    private void sleep(int milliseconds) {
-        try {
-            Thread.sleep(milliseconds);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
-    // ==================== TEST PRINCIPAL ====================
-
     @Test
     public void testCompleteExecutionFlowWithVisualization() {
-        printHeader("DÉMARRAGE DU TEST APPIUM AVEC VISUALISATION");
-        printInfo("Durée estimée : 1 minute 45 secondes");
-        System.out.println("======================================================================\n");
+        System.out.println("\n");
+        System.out.println("======================================================================");
+        System.out.println("  DÉMARRAGE DU TEST APPIUM AVEC VISUALISATION");
+        System.out.println("======================================================================");
+        System.out.println("ℹ️  Durée estimée : 1 minute 45 secondes");
+        System.out.println("======================================================================");
+        System.out.println("\n");
 
-        // ========== PHASE 1 : ÉCRAN DE SÉLECTION ==========
-        printPhase("PHASE 1 : ÉCRAN DE SÉLECTION (5s)");
+        // ====================================================================
+        // PHASE 1 : ÉCRAN DE SÉLECTION (5 secondes)
+        // ====================================================================
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("📍 PHASE 1 : ÉCRAN DE SÉLECTION (5s)");
+        System.out.println("──────────────────────────────────────────────────────────────────────");
 
-        By titleLocator = By.id("com.qos.latency.analyzer:id/tv_title");
-        String appTitle = waitAndGetText(titleLocator);
-        printSuccess("Application lancée : " + appTitle);
+        By titleLocator = By.xpath("//android.widget.TextView[@text='QoS Latence']");
+        WebElement titleElement = wait.until(
+                org.openqa.selenium.support.ui.ExpectedConditions.visibilityOfElementLocated(titleLocator)
+        );
+        assertNotNull(titleElement, "Le titre devrait être visible");
+        System.out.println("✅ Application lancée : " + titleElement.getText());
 
-        printInfo("Observation de l'interface de sélection...");
-        sleep(TEMPO_ECRAN_SELECTION);
-        printProgress("✓ Phase 1 terminée\n");
+        System.out.println("ℹ️  Observation de l'interface de sélection...");
+        sleep(5000);
+        System.out.println("⏩ ✓ Phase 1 terminée");
+        System.out.println("\n");
 
-        // ========== PHASE 2 : ATTENTE CHARGEMENT APP ==========
-        printPhase("PHASE 2 : ATTENTE CHARGEMENT APP (5s)");
-        printInfo("Attente que l'app charge les fichiers depuis les assets...");
-        sleep(TEMPO_APP_CHARGEMENT);
-        printProgress("✓ Phase 2 terminée\n");
+        // ====================================================================
+        // PHASE 2 : ATTENTE CHARGEMENT APP (5 secondes)
+        // ====================================================================
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("📍 PHASE 2 : ATTENTE CHARGEMENT APP (5s)");
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("ℹ️  Attente que l'app charge les fichiers depuis les assets...");
 
-        // ========== PHASE 3 : AVANT CLIC SUR FICHIER ==========
-        printPhase("PHASE 3 : AVANT CLIC SUR FICHIER (5s)");
-        printInfo("Préparation pour sélectionner test_data.json...");
-        sleep(TEMPO_AVANT_CLIC);
-        printProgress("✓ Phase 3 terminée\n");
+        waitForFilesLoaded();
 
-        // ========== PHASE 4 : CLIC ET CHARGEMENT ==========
-        printPhase("PHASE 4 : CLIC ET CHARGEMENT (2s)");
-        printInfo("Clic sur test_data.json...");
+        sleep(5000);
+        System.out.println("⏩ ✓ Phase 2 terminée");
+        System.out.println("\n");
 
-        // Clic sur le fichier test_data.json (sans extension dans le bouton)
-        By testDataButton = By.xpath("//android.widget.Button[contains(@text, 'test_data') or contains(@text, 'test data')]");
-        waitAndClick(testDataButton);
+        // ====================================================================
+        // PHASE 3 : AVANT CLIC SUR FICHIER (5 secondes)
+        // ====================================================================
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("📍 PHASE 3 : AVANT CLIC SUR FICHIER (5s)");
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("ℹ️  Préparation pour sélectionner data_high_variable_latency.json...");
 
-        printSuccess("Fichier sélectionné");
-        sleep(TEMPO_NAVIGATION);
-        printProgress("✓ Phase 4 terminée\n");
+        sleep(5000);
+        System.out.println("⏩ ✓ Phase 3 terminée");
+        System.out.println("\n");
 
-        // ========== PHASE 5 : GRAPHIQUE INITIAL ==========
-        printPhase("PHASE 5 : GRAPHIQUE INITIAL (5s)");
+        // ====================================================================
+        // PHASE 4 : CLIC ET CHARGEMENT (2 secondes)
+        // ====================================================================
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("📍 PHASE 4 : CLIC ET CHARGEMENT (2s)");
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("ℹ️  Clic sur data_high_variable_latency.json...");
+
+        waitAndClick(
+                By.xpath("//android.widget.Button[contains(@text, 'DATA_HIGH_VARIABLE_LATENCY') or contains(@text, 'DATA HIGH')]"),
+                15
+        );
+
+        sleep(2000);
+        System.out.println("⏩ ✓ Phase 4 terminée");
+        System.out.println("\n");
+
+        // ====================================================================
+        // PHASE 5 : ÉCRAN GRAPHIQUE VISIBLE (5 secondes)
+        // ====================================================================
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("📍 PHASE 5 : ÉCRAN GRAPHIQUE VISIBLE (5s)");
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("ℹ️  Vérification de la présence du bouton Lancer...");
+
+        By launchButtonLocator = By.xpath("//android.widget.Button[@text='Lancer l\\'analyse' or @text='Lancer']");
+        WebElement launchButton = wait.until(
+                org.openqa.selenium.support.ui.ExpectedConditions.visibilityOfElementLocated(launchButtonLocator)
+        );
+        assertNotNull(launchButton, "Le bouton Lancer devrait être visible");
+        System.out.println("✅ Bouton trouvé : " + launchButton.getText());
+
+        sleep(5000);
+        System.out.println("⏩ ✓ Phase 5 terminée");
+        System.out.println("\n");
+
+        // ====================================================================
+        // PHASE 6 : AVANT CLIC LANCER (5 secondes)
+        // ====================================================================
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("📍 PHASE 6 : AVANT CLIC LANCER (5s)");
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("ℹ️  Préparation avant de lancer l'animation...");
+
+        sleep(5000);
+        System.out.println("⏩ ✓ Phase 6 terminée");
+        System.out.println("\n");
+
+        // ====================================================================
+        // PHASE 7 : CLIC LANCER (1 seconde)
+        // ====================================================================
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("📍 PHASE 7 : CLIC LANCER (1s)");
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("ℹ️  Clic sur le bouton Lancer...");
+
+        launchButton.click();
+
+        sleep(1000);
+        System.out.println("✅ Bouton Lancer cliqué");
+        System.out.println("⏩ ✓ Phase 7 terminée");
+        System.out.println("\n");
+
+        // ====================================================================
+        // PHASE 8 : ANIMATION EN COURS (60 secondes)
+        // ====================================================================
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("📍 PHASE 8 : ANIMATION EN COURS (60s)");
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("ℹ️  Animation chronologique des paquets réseau...");
+        System.out.println("⏳ Observation de l'animation pendant 60 secondes...");
+
+        // Vérification toutes les 10 secondes que l'animation se déroule
+        for (int i = 1; i <= 6; i++) {
+            sleep(10000);
+            System.out.println("    ⏱️  " + (i * 10) + "s écoulées...");
+
+            // Vérifier que l'app n'a pas crashé
+            By statusLocator = By.id("com.qos.latency.analyzer:id/tv_status");
+            boolean statusExists = driver.findElements(statusLocator).size() > 0;
+            assertTrue(statusExists, "L'élément de statut devrait toujours exister (vérification crash)");
+        }
+
+        System.out.println("✅ Animation observée pendant 60 secondes");
+        System.out.println("⏩ ✓ Phase 8 terminée");
+        System.out.println("\n");
+
+        // ====================================================================
+        // PHASE 9 : ATTENTE FIN ANIMATION (10 secondes)
+        // ====================================================================
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("📍 PHASE 9 : ATTENTE FIN ANIMATION (10s)");
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("ℹ️  Attente de la fin complète de l'animation...");
+
+        sleep(10000);
+        System.out.println("⏩ ✓ Phase 9 terminée");
+        System.out.println("\n");
+
+        // ====================================================================
+        // PHASE 10 : VÉRIFICATION POST-ANIMATION (5 secondes)
+        // ====================================================================
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("📍 PHASE 10 : VÉRIFICATION POST-ANIMATION (5s)");
+        System.out.println("──────────────────────────────────────────────────────────────────────");
+        System.out.println("ℹ️  Vérification de l'état final de l'application...");
 
         By statusLocator = By.id("com.qos.latency.analyzer:id/tv_status");
-        String status = waitAndGetText(statusLocator);
-        printSuccess("Statut actuel : " + status);
+        boolean statusVisible = driver.findElements(statusLocator).size() > 0;
+        assertTrue(statusVisible, "Le statut devrait être visible après l'animation");
 
-        printInfo("Observation du graphique vide...");
-        sleep(TEMPO_GRAPHIQUE_INITIAL);
-        printProgress("✓ Phase 5 terminée\n");
+        if (statusVisible) {
+            WebElement statusElement = driver.findElement(statusLocator);
+            System.out.println("✅ Statut final : " + statusElement.getText());
+        }
 
-        // ========== PHASE 6 : AVANT LANCER ==========
-        printPhase("PHASE 6 : AVANT LANCER (5s)");
+        sleep(5000);
+        System.out.println("⏩ ✓ Phase 10 terminée");
+        System.out.println("\n");
 
-        By launchButtonLocator = By.id("com.qos.latency.analyzer:id/btn_launch");
-        String buttonText = waitAndGetText(launchButtonLocator);
-        printSuccess("Bouton trouvé : " + buttonText);
-
-        printInfo("Observation du bouton 'Lancer'...");
-        sleep(TEMPO_AVANT_LANCER);
-        printProgress("✓ Phase 6 terminée\n");
-
-        // ========== PHASE 7 : DÉMARRAGE ANIMATION ==========
-        printPhase("PHASE 7 : DÉMARRAGE ANIMATION (1s)");
-        printInfo("Clic sur le bouton 'Lancer'...");
-
-        waitAndClick(launchButtonLocator);
-        printSuccess("Animation démarrée");
-
-        sleep(TEMPO_DEMARRAGE);
-        printProgress("✓ Phase 7 terminée\n");
-
-        // ========== PHASE 8 : PREMIERS PAQUETS ==========
-        printPhase("PHASE 8 : PREMIERS PAQUETS (5s)");
-        printInfo("Observation des premiers paquets...");
-
-        String statusAnimation = waitAndGetText(statusLocator);
-        printInfo("Statut : " + statusAnimation);
-
-        sleep(TEMPO_PREMIERS_PAQUETS);
-        printProgress("✓ Phase 8 terminée\n");
-
-        // ========== PHASE 9 : GRAPHIQUE COMPLET ==========
-        printPhase("PHASE 9 : GRAPHIQUE COMPLET (20s)");
-        printInfo("Analyse de tous les points sur le graphique...");
-
-        sleep(TEMPO_GRAPHIQUE_COMPLET);
-        printProgress("✓ Phase 9 terminée\n");
-
-        // ========== PHASE 10 : COMPTE À REBOURS DÉBUT ==========
-        printPhase("PHASE 10 : COMPTE À REBOURS DÉBUT (20s)");
-        printInfo("⏱Observation du compte à rebours (30s → 10s)...");
-
-        sleep(TEMPO_COMPTE_A_REBOURS);
-
-        String countdown = waitAndGetText(launchButtonLocator);
-        printInfo("Temps restant affiché : " + countdown);
-        printProgress("✓ Phase 10 terminée\n");
-
-        // ========== PHASE 11 : OBSERVATION LONGUE ==========
-        printPhase("PHASE 11 : OBSERVATION LONGUE (20s)");
-        printInfo("Examen détaillé du graphique final...");
-
-        sleep(TEMPO_OBSERVATION_LONGUE);
-        printProgress("✓ Phase 11 terminée\n");
-
-        // ========== PHASE 12 : ÉTAT FINAL ==========
-        printPhase("PHASE 12 : ÉTAT FINAL (10s)");
-        printInfo("Vérification de l'état final...");
-
-        sleep(TEMPO_ETAT_FINAL);
-
-        String finalStatus = waitAndGetText(statusLocator);
-        String finalButton = waitAndGetText(launchButtonLocator);
-
-        printSuccess("État final du système :");
-        printInfo("  → Statut : " + finalStatus);
-        printInfo("  → Bouton : " + finalButton);
-
-        printProgress("✓ Phase 12 terminée\n");
-
-        // ========== RÉSUMÉ FINAL ==========
-        printHeader("TEST TERMINÉ AVEC SUCCÈS");
-        printSuccess("Toutes les 12 phases ont été exécutées");
-        printInfo("Durée totale : 105 secondes (1 min 45s)");
-        System.out.println("======================================================================\n");
+        // ====================================================================
+        // RÉSUMÉ FINAL
+        // ====================================================================
+        System.out.println("======================================================================");
+        System.out.println("  ✅ TEST COMPLET RÉUSSI");
+        System.out.println("======================================================================");
+        System.out.println("📊 Toutes les phases ont été exécutées avec succès");
+        System.out.println("⏱️  Durée totale : ~1 minute 45 secondes");
+        System.out.println("======================================================================");
+        System.out.println("\n");
     }
 }

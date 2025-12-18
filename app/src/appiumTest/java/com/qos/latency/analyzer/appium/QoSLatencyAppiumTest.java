@@ -2,129 +2,124 @@ package com.qos.latency.analyzer.appium;
 
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.By;
+import org.openqa.selenium.WebElement;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests Appium pour l'application QoS Latency Analyzer
- *
- * Ce fichier contient les tests principaux de l'application.
- * Tous les tests héritent de BaseAppiumTest qui fournit les méthodes utilitaires.
- *
- * VERSION CORRIGÉE - Utilise waitForFilesLoaded() qui est maintenant définie dans BaseAppiumTest
  */
 public class QoSLatencyAppiumTest extends BaseAppiumTest {
 
-    /**
-     * Test 1 : Vérifier que l'app démarre correctement
-     */
     @Test
-    public void testAppLaunches() throws InterruptedException {
-        String title = waitAndGetText(By.id("com.qos.latency.analyzer:id/tv_title"));
-        assertEquals("QoS Latence", title);
+    public void testAppLaunches() {
+        System.out.println("🚀 Test de lancement de l'application...");
 
-        assertTrue(isElementDisplayed(By.id("com.qos.latency.analyzer:id/screen_file_selection")));
+        By titleLocator = By.xpath("//android.widget.TextView[@text='QoS Latence']");
+        WebElement titleElement = wait.until(
+                org.openqa.selenium.support.ui.ExpectedConditions.visibilityOfElementLocated(titleLocator)
+        );
+
+        assertNotNull(titleElement, "Le titre de l'application devrait être visible");
+        assertEquals("QoS Latence", titleElement.getText());
+
+        System.out.println("✅ Application lancée avec succès");
     }
 
-    /**
-     * Test 2 : Sélectionner le fichier test_data
-     * Attente dynamique des fichiers + scroll automatique
-     */
     @Test
-    public void testSelectFile_TestData() throws InterruptedException {
+    public void testSelectFile_TestData() {
+        System.out.println("📁 Test de sélection du fichier DATA_HIGH_VARIABLE_LATENCY...");
+
         waitForFilesLoaded();
 
-        // Attendre 1 seconde supplémentaire pour stabilité
-        Thread.sleep(1000);
+        By fileLocator = By.xpath("//android.widget.Button[@text='DATA_HIGH_VARIABLE_LATENCY']");
+        boolean fileExists = driver.findElements(fileLocator).size() > 0;
 
-        By fileLocator = By.xpath("//android.widget.TextView[@text='test_data']");
+        assertTrue(fileExists, "Le fichier 'DATA_HIGH_VARIABLE_LATENCY' devrait être visible après chargement");
 
-        // Vérifier que le fichier est visible (avec scroll si nécessaire)
-        assertTrue(isElementDisplayed(fileLocator, 10),
-                "Le fichier 'test_data' devrait être visible après chargement");
+        if (fileExists) {
+            waitAndClick(fileLocator, 10);
+            System.out.println("✅ Fichier DATA_HIGH_VARIABLE_LATENCY sélectionné");
 
-        // Cliquer sur le fichier
-        waitAndClick(fileLocator);
+            sleep(2000);
 
-        Thread.sleep(2000);
-
-        // Vérifier la navigation
-        assertTrue(isElementDisplayed(By.id("com.qos.latency.analyzer:id/screen_animation"), 10),
-                "L'écran d'animation devrait être affiché");
-
-        String status = waitAndGetText(By.id("com.qos.latency.analyzer:id/tv_status"));
-        assertEquals("Prêt pour l'analyse", status);
+            By launchButtonLocator = By.xpath("//android.widget.Button[@text='Lancer l\\'analyse' or @text='Lancer']");
+            boolean launchButtonExists = driver.findElements(launchButtonLocator).size() > 0;
+            assertTrue(launchButtonExists, "Le bouton 'Lancer l'analyse' devrait être visible après sélection");
+        }
     }
 
-    /**
-     * Test 3 : Bouton "Actualiser"
-     * Meilleure gestion de l'actualisation
-     */
     @Test
-    public void testRefreshButton() throws InterruptedException {
-        // Attendre le chargement initial
+    public void testRefreshButton() {
+        System.out.println("🔄 Test du bouton Actualiser...");
+
         waitForFilesLoaded();
-        Thread.sleep(1000);
 
-        // Vérifier avec timeout approprié
-        By fileLocator = By.xpath("//android.widget.TextView[@text='test_data']");
-        assertTrue(isElementDisplayed(fileLocator, 10),
-                "Le fichier 'test_data' devrait être visible initialement");
+        String testFileName = "DATA_HIGH_VARIABLE_LATENCY";
+        By fileLocator = By.xpath("//android.widget.Button[@text='" + testFileName + "']");
+        boolean initialFileExists = driver.findElements(fileLocator).size() > 0;
 
-        // Cliquer sur "Actualiser"
-        By refreshButton = By.id("com.qos.latency.analyzer:id/btn_refresh_files");
-        waitAndClick(refreshButton);
+        assertTrue(initialFileExists, "Le fichier 'DATA_HIGH_VARIABLE_LATENCY' devrait être visible initialement");
 
-        // Attendre que les fichiers soient rechargés
-        // (donner le temps à l'UI de se rafraîchir)
-        Thread.sleep(1000);
-        waitForFilesLoaded();
-        Thread.sleep(1000);
+        By refreshButtonLocator = By.xpath("//android.widget.Button[@text='Actualiser']");
+        waitAndClick(refreshButtonLocator, 10);
 
-        // Vérifier avec un nouveau check
-        assertTrue(isElementDisplayed(fileLocator, 10),
-                "Le fichier 'test_data' devrait toujours être visible après actualisation");
+        System.out.println("✅ Bouton Actualiser cliqué");
+
+        sleep(2000);
+
+        boolean fileStillExists = driver.findElements(fileLocator).size() > 0;
+        assertTrue(fileStillExists, "Le fichier devrait toujours être visible après actualisation");
+
+        System.out.println("✅ Test du bouton Actualiser réussi");
     }
 
-    /**
-     * Vérifier que plusieurs fichiers sont listés
-     */
     @Test
-    public void testMultipleFilesListed() throws InterruptedException {
+    public void testMultipleFilesListed() {
+        System.out.println("📋 Test de la liste des fichiers...");
+
         waitForFilesLoaded();
-        Thread.sleep(1000);
 
-        // Vérifier que test_data est présent
-        assertTrue(isElementDisplayed(By.xpath("//android.widget.TextView[@text='test_data']"), 10));
+        By fileButtonsLocator = By.xpath("//android.widget.Button[contains(@resource-id, '') and @clickable='true']");
 
-        // Note : Les autres fichiers peuvent nécessiter un scroll
-        // C'est normal, on vérifie juste qu'au moins un fichier est présent
+        int fileCount = driver.findElements(fileButtonsLocator).size();
+
+        assertTrue(fileCount >= 7, "Il devrait y avoir au moins 7 fichiers listés (trouvés: " + fileCount + ")");
+
+        boolean testDataExists = driver.findElements(
+                By.xpath("//android.widget.Button[@text='DATA_HIGH_VARIABLE_LATENCY']")
+        ).size() > 0;
+
+        assertTrue(testDataExists, "Le fichier DATA_HIGH_VARIABLE_LATENCY devrait être dans la liste");
+
+        System.out.println("✅ " + fileCount + " fichiers trouvés dans la liste");
     }
 
-    /**
-     * Test du bouton retour après sélection
-     */
     @Test
-    public void testBackToFileSelectionAfterSelect() throws InterruptedException {
+    public void testBackToFileSelectionAfterSelect() {
+        System.out.println("⬅️ Test du retour à la sélection de fichier...");
+
         waitForFilesLoaded();
-        Thread.sleep(1000);
 
-        // Sélectionner un fichier
-        waitAndClick(By.xpath("//android.widget.TextView[@text='test_data']"));
-        Thread.sleep(2000);
+        By testDataLocator = By.xpath("//android.widget.Button[@text='DATA_HIGH_VARIABLE_LATENCY']");
+        waitAndClick(testDataLocator, 10);
 
-        // Vérifier qu'on est sur l'écran d'animation
-        assertTrue(isElementDisplayed(By.id("com.qos.latency.analyzer:id/screen_animation"), 5));
+        System.out.println("✅ Fichier sélectionné, passage à l'écran d'analyse");
 
-        // Cliquer sur "Changer de fichier"
-        waitAndClick(By.id("com.qos.latency.analyzer:id/btn_change_file"));
-        Thread.sleep(1500);
+        sleep(2000);
 
-        // Vérifier le retour à la sélection
-        assertTrue(isElementDisplayed(By.id("com.qos.latency.analyzer:id/screen_file_selection"), 5));
+        By changeFileButtonLocator = By.xpath("//android.widget.Button[@text='Changer fichier']");
+        waitAndClick(changeFileButtonLocator, 10);
 
-        // Vérifier que les fichiers sont toujours là
-        waitForFilesLoaded();
-        assertTrue(isElementDisplayed(By.xpath("//android.widget.TextView[@text='test_data']"), 10));
+        System.out.println("✅ Bouton 'Changer fichier' cliqué");
+
+        sleep(1000);
+
+        By fileSelectionTitleLocator = By.xpath("//android.widget.TextView[@text='Sélection du fichier']");
+        boolean backToFileSelection = driver.findElements(fileSelectionTitleLocator).size() > 0;
+
+        assertTrue(backToFileSelection, "Devrait être de retour à l'écran de sélection de fichier");
+
+        System.out.println("✅ Retour à l'écran de sélection réussi");
     }
 }
