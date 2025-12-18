@@ -133,7 +133,48 @@ pipeline {
         stage('Build Application Android') {
             steps {
                 echo '🔨 Compilation de l\'APK Debug'
-                sh './gradlew assembleDebug --no-daemon --warning-mode=none'
+
+                script {
+                    // Nettoyage brutal avant le build
+                    sh '''
+                        echo "🧹 Nettoyage brutal avant build..."
+
+                        # Tuer TOUS les processus Gradle encore une fois
+                        pkill -9 -f gradle 2>/dev/null || true
+                        pkill -9 -f java 2>/dev/null || true
+                        sleep 2
+
+                        # Changer les permissions de tout le répertoire build
+                        if [ -d "app/build" ]; then
+                            echo "   Changement des permissions..."
+                            chmod -R 777 app/build 2>/dev/null || true
+                            chmod -R 777 build 2>/dev/null || true
+                        fi
+
+                        # Suppression FORCÉE avec find (plus puissant que rm)
+                        echo "   Suppression avec find..."
+                        find app/build -type f -delete 2>/dev/null || true
+                        find app/build -type d -delete 2>/dev/null || true
+                        find build -type f -delete 2>/dev/null || true
+                        find build -type d -delete 2>/dev/null || true
+
+                        # Suppression finale avec rm
+                        rm -rf app/build 2>/dev/null || true
+                        rm -rf build 2>/dev/null || true
+
+                        # Vérification
+                        if [ -d "app/build" ] || [ -d "build" ]; then
+                            echo "   ⚠️  Répertoires build toujours présents, ignoré..."
+                        else
+                            echo "   ✓ Répertoires build complètement supprimés"
+                        fi
+
+                        sleep 2
+                    '''
+
+                    // Build avec --no-daemon et --no-build-cache
+                    sh './gradlew assembleDebug --no-daemon --no-build-cache --warning-mode=none'
+                }
 
                 script {
                     sh '''
