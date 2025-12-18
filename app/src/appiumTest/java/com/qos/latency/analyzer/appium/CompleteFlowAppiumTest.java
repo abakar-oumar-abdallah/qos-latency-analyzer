@@ -92,7 +92,7 @@ public class CompleteFlowAppiumTest extends BaseAppiumTest {
         System.out.println("──────────────────────────────────────────────────────────────────────");
         System.out.println("ℹ️  Vérification de la présence du bouton Lancer...");
 
-        By launchButtonLocator = By.xpath("//android.widget.Button[@text='Lancer l\\'analyse' or @text='Lancer']");
+        By launchButtonLocator = By.xpath("//android.widget.Button[contains(@text, 'Lancer')]");
         WebElement launchButton = wait.until(
                 org.openqa.selenium.support.ui.ExpectedConditions.visibilityOfElementLocated(launchButtonLocator)
         );

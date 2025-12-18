@@ -43,9 +43,9 @@ public class QoSLatencyAppiumTest extends BaseAppiumTest {
 
             sleep(2000);
 
-            By launchButtonLocator = By.xpath("//android.widget.Button[@text='Lancer l\\'analyse' or @text='Lancer']");
+            By launchButtonLocator = By.xpath("//android.widget.Button[contains(@text, 'Lancer')]");
             boolean launchButtonExists = driver.findElements(launchButtonLocator).size() > 0;
-            assertTrue(launchButtonExists, "Le bouton 'Lancer l'analyse' devrait être visible après sélection");
+            assertTrue(launchButtonExists, "Le bouton 'Lancer' devrait être visible après sélection");
         }
     }
 
