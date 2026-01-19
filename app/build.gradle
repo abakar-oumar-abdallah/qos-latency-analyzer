@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    id 'jacoco'
 }
 
 android {
@@ -21,22 +22,155 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+        debug {
+            testCoverageEnabled true
+        }
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+            returnDefaultValues = true
+        }
+    }
+}
+
+// ================================
+// CONFIGURATION DES SOURCES
+// ================================
+sourceSets {
+    // Tests Appium (JUnit 5) - SÉPARÉ et INDÉPENDANT
+    appiumTest {
+        java {
+            srcDir 'src/appiumTest/java'
+        }
+    }
+}
+
+// ================================
+// CONFIGURATIONS (CORRIGÉ - NE PAS HÉRITER)
+// ================================
+configurations {
+    // ⚠️ CRITIQUE : Ne PAS utiliser extendsFrom avec implementation
+    // Les tests Appium sont des tests EXTERNES qui n'ont pas besoin
+    // des bibliothèques Android (.aar)
+    appiumTestImplementation
+    appiumTestRuntimeOnly
 }
 
 dependencies {
-    // Uniquement les dépendances Android de base
+    // ================================
+    // DÉPENDANCES ANDROID DE BASE
+    // ================================
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.core:core:1.12.0'
     implementation 'com.google.android.material:material:1.10.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
+    // ================================
+    // TESTS UNITAIRES (JUnit 4)
+    // ================================
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.mockito:mockito-core:5.7.0'
+    testImplementation 'org.mockito:mockito-inline:5.2.0'
+    testImplementation 'org.json:json:20231013'
+
+    // ================================
+    // TESTS INSTRUMENTÉS (ESPRESSO)
+    // ================================
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test:runner:1.5.2'
+    androidTestImplementation 'androidx.test:rules:1.5.0'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-intents:3.5.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-contrib:3.5.1'
+    androidTestImplementation 'androidx.test.uiautomator:uiautomator:2.3.0'
+
+    // ================================
+    // TESTS APPIUM (JUnit 5) - INDÉPENDANT
+    // ⚠️ NE PAS utiliser 'implementation' ici, uniquement 'appiumTestImplementation'
+    // ================================
+    appiumTestImplementation 'io.appium:java-client:9.2.0'
+    appiumTestImplementation 'org.seleniumhq.selenium:selenium-java:4.18.1'
+    appiumTestImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+}
+
+// ================================
+// CONFIGURATION JACOCO
+// ================================
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+afterEvaluate {
+    tasks.register('jacocoTestReport', JacocoReport) {
+        dependsOn 'testDebugUnitTest'
+
+        reports {
+            xml.required = true
+            html.required = true
+        }
+
+        def fileFilter = [
+                '**/R.class',
+                '**/R$*.class',
+                '**/BuildConfig.*',
+                '**/Manifest*.*',
+                '**/*Test*.*',
+                'android/**/*.*'
+        ]
+
+        def debugTree = fileTree(dir: "${buildDir}/intermediates/javac/debug/classes", excludes: fileFilter)
+        def mainSrc = "${projectDir}/src/main/java"
+
+        sourceDirectories.setFrom(files([mainSrc]))
+        classDirectories.setFrom(files([debugTree]))
+        executionData.setFrom(fileTree(dir: buildDir, includes: [
+                'jacoco/testDebugUnitTest.exec',
+                'outputs/code_coverage/debugAndroidTest/connected/**/*.ec'
+        ]))
+    }
+}
+
+// ================================
+// TÂCHE APPIUM TEST
+// ================================
+tasks.register('appiumTest', Test) {
+    description = 'Exécute les tests Appium (nécessite Appium Server)'
+    group = 'verification'
+
+    // Configuration des sources
+    testClassesDirs = sourceSets.appiumTest.output.classesDirs
+    classpath = sourceSets.appiumTest.runtimeClasspath
+
+    // Utiliser JUnit Platform (JUnit 5)
+    useJUnitPlatform()
+
+    // Configuration des rapports
+    reports {
+        html.required = true
+        html.outputLocation = file("${buildDir}/reports/tests/appiumTest")
+        junitXml.required = true
+        junitXml.outputLocation = file("${buildDir}/test-results/appiumTest")
+    }
+
+    // Logging détaillé
+    testLogging {
+        events "passed", "skipped", "failed", "standardOut", "standardError"
+        exceptionFormat "full"
+        showStandardStreams = true
+        showCauses = true
+        showStackTraces = true
+    }
+
+    // Timeout
+    timeout = Duration.ofMinutes(20)
+
+    // Variables d'environnement
+    systemProperty 'appium.server', System.getProperty('appium.server', 'http://127.0.0.1:4723')
 }

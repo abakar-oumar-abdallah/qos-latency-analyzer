@@ -2,6 +2,8 @@ package com.qos.latency.analyzer.model;
 
 import android.content.Context;
 import org.json.JSONObject;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +17,7 @@ import java.util.Scanner;
  * et détermine le statut de chaque paquet (reçu, perdu, dupliqué, inversé).
  *
  * @author Équipe QoS Gaming
- * @version 3.0
+ * @version 3.1
  */
 public class LatencyModel {
 
@@ -157,23 +159,42 @@ public class LatencyModel {
     }
 
     /**
-     * Récupère la liste des fichiers JSON disponibles dans les assets.
+     * Récupère la liste des fichiers JSON disponibles dans le stockage de l'app.
+     * ✅ MODIFIÉ : Lit depuis getExternalFilesDir() au lieu des assets
      *
-     * @param context Contexte Android pour accéder aux assets
+     * @param context Contexte Android pour accéder aux fichiers
      * @return Liste des noms de fichiers JSON trouvés
      */
     public static List<String> getAvailableDataFiles(Context context) {
         List<String> jsonFiles = new ArrayList<>();
         try {
-            String[] allFiles = context.getAssets().list("");
-            if (allFiles != null) {
-                for (String fileName : allFiles) {
-                    if (fileName.endsWith(".json")) {
-                        jsonFiles.add(fileName);
-                    }
+            // ✅ NOUVEAU : Lire depuis getExternalFilesDir()
+            File appExternalDir = context.getExternalFilesDir(null);
+            if (appExternalDir == null) {
+                android.util.Log.e("LatencyModel", "getExternalFilesDir() retourne null");
+                return jsonFiles;
+            }
+
+            File qosDataDir = new File(appExternalDir, "QoS_Data");
+            android.util.Log.d("LatencyModel", "Recherche fichiers dans: " + qosDataDir.getAbsolutePath());
+
+            if (!qosDataDir.exists() || !qosDataDir.isDirectory()) {
+                android.util.Log.w("LatencyModel", "Dossier QoS_Data n'existe pas ou n'est pas un dossier");
+                return jsonFiles;
+            }
+
+            File[] files = qosDataDir.listFiles((dir, name) -> name.endsWith(".json"));
+            if (files != null) {
+                android.util.Log.d("LatencyModel", "Fichiers trouvés: " + files.length);
+                for (File file : files) {
+                    jsonFiles.add(file.getName());
+                    android.util.Log.d("LatencyModel", "  - " + file.getName());
                 }
+            } else {
+                android.util.Log.w("LatencyModel", "listFiles() retourne null");
             }
         } catch (Exception e) {
+            android.util.Log.e("LatencyModel", "Erreur lecture fichiers: " + e.getMessage(), e);
             e.printStackTrace();
         }
         return jsonFiles;
@@ -191,8 +212,9 @@ public class LatencyModel {
     /**
      * Charge les données depuis un fichier JSON au format request_array.
      * Compatible avec deux formats de champs : dup/duplicated et rev/reversed.
+     * ✅ MODIFIÉ : Lit depuis getExternalFilesDir() au lieu des assets
      *
-     * @param context Contexte Android pour accéder aux assets
+     * @param context Contexte Android pour accéder aux fichiers
      * @param fileName Nom du fichier JSON à charger
      * @throws RuntimeException Si le fichier n'existe pas ou a un format invalide
      */
@@ -202,11 +224,48 @@ public class LatencyModel {
                 fileName += ".json";
             }
 
-            InputStream inputStream = context.getAssets().open(fileName);
+            // ✅ NOUVEAU : Lire depuis getExternalFilesDir()
+            File appExternalDir = context.getExternalFilesDir(null);
+            if (appExternalDir == null) {
+                throw new RuntimeException("Impossible d'accéder au stockage de l'app");
+            }
+
+            File qosDataDir = new File(appExternalDir, "QoS_Data");
+            File file = new File(qosDataDir, fileName);
+
+            android.util.Log.d("LatencyModel", "Tentative de chargement: " + file.getAbsolutePath());
+
+            if (!file.exists()) {
+                throw new RuntimeException("Fichier introuvable: " + fileName + " dans " + qosDataDir.getAbsolutePath());
+            }
+
+            // Lire le fichier
+            InputStream inputStream = new FileInputStream(file);
+
+            // ✅ NOUVEAU : Utiliser la méthode commune de parsing
+            loadDataFromStream(inputStream, fileName);
+
+            inputStream.close();
+
+        } catch (Exception e) {
+            android.util.Log.e("LatencyModel", "❌ Erreur chargement " + fileName + ": " + e.getMessage(), e);
+            throw new RuntimeException("Erreur chargement " + fileName + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * ✅ NOUVELLE MÉTHODE : Charge les données depuis un InputStream.
+     * Permet de tester le parsing JSON sans dépendre du système de fichiers Android.
+     *
+     * @param inputStream Stream contenant le JSON
+     * @param fileName Nom du fichier (pour l'affichage)
+     * @throws RuntimeException Si le format JSON est invalide
+     */
+    public void loadDataFromStream(InputStream inputStream, String fileName) {
+        try {
             Scanner scanner = new Scanner(inputStream, "UTF-8");
             String jsonString = scanner.useDelimiter("\\A").next();
             scanner.close();
-            inputStream.close();
 
             this.currentFileName = fileName;
             JSONObject root = new JSONObject(jsonString);
@@ -232,11 +291,14 @@ public class LatencyModel {
                         requestArrayData.addRequestData(i, txTimestamp, rxTimestamp, rtt, duplicated, reversed);
                     }
                 }
+
+                android.util.Log.d("LatencyModel", "✅ Fichier chargé avec succès: " + requestArrayData.getRequestDataList().size() + " paquets");
             } else {
                 throw new RuntimeException("Format non supporté : 'request_array' requis");
             }
 
         } catch (Exception e) {
+            android.util.Log.e("LatencyModel", "❌ Erreur parsing " + fileName + ": " + e.getMessage(), e);
             throw new RuntimeException("Erreur chargement " + fileName + ": " + e.getMessage());
         }
     }
