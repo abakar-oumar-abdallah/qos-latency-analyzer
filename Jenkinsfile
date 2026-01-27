@@ -123,6 +123,8 @@ pipeline {
                     sh '''
                         echo "=== VÉRIFICATION APPIUM EXISTANT ==="
 
+                        APP_LOG="$WORKSPACE/appium.log"
+
                         # Vérifier si Appium est déjà en cours d'exécution
                         if curl -s http://127.0.0.1:${APPIUM_PORT}/status > /dev/null 2>&1; then
                             echo "✅ Appium est déjà en cours d'exécution"
@@ -130,20 +132,18 @@ pipeline {
                         else
                             echo "Appium n'est pas en cours, démarrage..."
 
-                            # Arrêter tout processus Appium existant
                             echo "Arrêt de tout processus Appium existant..."
                             pkill -f appium || true
                             sleep 2
 
-                            # Créer le fichier de log avec les bonnes permissions
-                            touch /tmp/appium.log
-                            chmod 666 /tmp/appium.log
+                            echo "Création du fichier de log Appium dans le workspace"
+                            touch "$APP_LOG"
 
                             echo "Démarrage d'Appium sur le port ${APPIUM_PORT}..."
                             nohup appium server \
                                 --address 0.0.0.0 \
                                 --port ${APPIUM_PORT} \
-                                --log /tmp/appium.log \
+                                --log "$APP_LOG" \
                                 --log-level info \
                                 --use-drivers uiautomator2 \
                                 --relaxed-security > /dev/null 2>&1 &
@@ -155,7 +155,6 @@ pipeline {
                         echo ""
                         echo "=== VÉRIFICATION DU SERVEUR APPIUM ==="
 
-                        # Vérifier que le serveur répond (méthode améliorée)
                         MAX_ATTEMPTS=5
                         ATTEMPT=0
                         APPIUM_READY=false
@@ -175,33 +174,19 @@ pipeline {
                         done
 
                         if [ "$APPIUM_READY" = false ]; then
-                            echo "❌ ERREUR: Le serveur Appium ne répond pas après $MAX_ATTEMPTS tentatives"
+                            echo "❌ ERREUR: Le serveur Appium ne répond pas"
                             echo ""
                             echo "=== LOGS APPIUM ==="
-                            tail -n 50 /tmp/appium.log 2>/dev/null || echo "Pas de logs disponibles"
-                            echo ""
-                            echo "=== PROCESSUS APPIUM ==="
-                            ps aux | grep appium | grep -v grep || echo "Aucun processus Appium trouvé"
-                            echo ""
-                            echo "=== PORTS UTILISÉS ==="
-                            netstat -tulpn | grep ${APPIUM_PORT} || ss -tulpn | grep ${APPIUM_PORT} || echo "Port ${APPIUM_PORT} non utilisé"
+                            tail -n 50 "$APP_LOG" || echo "Pas de logs disponibles"
                             exit 1
                         fi
 
-                        echo "✅ Serveur Appium démarré et prêt sur http://127.0.0.1:${APPIUM_PORT}"
-
-                        echo ""
-                        echo "=== STATUT APPIUM ==="
-                        curl -s http://127.0.0.1:${APPIUM_PORT}/status | python3 -m json.tool 2>/dev/null || \
-                        curl -s http://127.0.0.1:${APPIUM_PORT}/status
-
-                        echo ""
-                        echo "=== LOGS APPIUM (20 dernières lignes) ==="
-                        tail -n 20 /tmp/appium.log 2>/dev/null || echo "Logs en cours de génération..."
+                        echo "✅ Serveur Appium prêt sur http://127.0.0.1:${APPIUM_PORT}"
                     '''
                 }
             }
         }
+
 
         stage('Tests Appium') {
             steps {
